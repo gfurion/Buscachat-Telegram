@@ -39,4 +39,7 @@ def route_event(event: dict) -> str | None:
 
 
 def get_chat_id(event: dict) -> str:
-    return event["data"]["from"]
+    data = event.get("data", {})
+    # Zavu sends telegramChatId as a separate field (pure numeric)
+    # The "from" field has "telegram:" prefix which Zavu API rejects
+    return data.get("telegramChatId") or data.get("from", "")

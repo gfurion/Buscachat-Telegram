@@ -46,6 +46,14 @@ def _verify_signature(signature_header: str, body: bytes) -> bool:
         hashlib.sha256,
     ).hexdigest()
 
+    # DEBUG: show HMAC comparison
+    logger.info(f"HMAC DEBUG - Our secret: {Config.ZAVU_WEBHOOK_SECRET[:15]}...")
+    logger.info(f"HMAC DEBUG - Timestamp: {timestamp}")
+    logger.info(f"HMAC DEBUG - Signed payload (first 100): {signed_payload[:100]}")
+    logger.info(f"HMAC DEBUG - Our HMAC: {expected}")
+    logger.info(f"HMAC DEBUG - Zavu HMAC: {provided_sig}")
+    logger.info(f"HMAC DEBUG - Match: {expected == provided_sig}")
+
     return hmac.compare_digest(expected, provided_sig)
 
 
