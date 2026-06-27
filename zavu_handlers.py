@@ -15,35 +15,37 @@ api = FoundPeopleAPI()
 face_matcher = FaceMatcher()
 
 MENU_TEXT = (
-    "*BuscaChat - Reunificacion Familiar*\n\n"
-    "Soy tu asistente para buscar personas desaparecidas o reportar "
-    "personas encontradas tras el terremoto en Venezuela.\n\n"
-    "Selecciona una opcion:\n"
-    "1. *Buscar persona*\n"
-    "2. *Registrar persona*\n"
-    "3. *Ayuda*\n\n"
-    "Escribe el numero de la opcion:"
+    "🔍 *BuscaChat — Reunificacion Familiar*\n\n"
+    "Asistente para buscar y reportar personas\n"
+    "tras el terremoto en Venezuela 🇻🇪\n\n"
+    "*¿Que queres hacer?*\n\n"
+    "1️⃣ *Buscar persona* — por nombre o cedula\n"
+    "2️⃣ *Registrar persona* — desaparecida o encontrada\n"
+    "3️⃣ *Ayuda* — como funciona el bot\n\n"
+    "Escribi el numero:"
 )
 
 REGISTRAR_TEXT = (
-    "*Registrar persona*\n\n"
-    "Que tipo de persona quieres registrar?\n"
-    "/registrar desaparecido - Persona desaparecida\n"
-    "/registrar encontrado - Persona encontrada\n"
-    "/start - Volver al menu principal"
+    "📝 *Registrar persona*\n\n"
+    "¿Que tipo de reporte queres hacer?\n\n"
+    "▸ /registrar desaparecido — Persona desaparecida\n"
+    "▸ /registrar encontrado — Persona encontrada\n"
+    "▸ /start — Volver al menu principal"
 )
 
 AYUDA_TEXT = (
-    "*Ayuda - BuscaChat*\n\n"
-    "*Como funciona:*\n"
-    "- Usa *Buscar* para encontrar personas por nombre o cedula\n"
-    "- Usa *Registrar* para reportar una persona desaparecida o encontrada\n\n"
+    "🆘 *Ayuda — BuscaChat*\n\n"
+    "*¿Como funciona?*\n"
+    "🔎 *Buscar* — encontra personas por nombre o cedula\n"
+    "📝 *Registrar* — reporta una persona desaparecida o encontrada\n"
+    "📸 *Foto* — busca por reconocimiento facial\n\n"
     "*Comandos:*\n"
-    "/start - Menu principal\n"
-    "/buscar [nombre] - Buscar persona"
+    "▸ /start — Menu principal\n"
+    "▸ /buscar \\[nombre\\] — Buscar persona\n"
+    "▸ /registrar — Reportar persona"
 )
 
-RESULTADO_TEXT = "\nEscribe *1* para buscar otra vez o *2* para volver al menu."
+RESULTADO_TEXT = "\n🔁 Escribi *1* para buscar otra vez o *2* para volver al menu."
 
 
 async def handle_start(event: dict) -> None:
@@ -77,7 +79,7 @@ async def handle_buscar(event: dict) -> None:
         await send_text_async(
             chat_id,
             "*Buscar persona*\n\n"
-            "Envia el nombre o cedula de la persona que buscas.\n"
+            "Escribi el nombre o cedula de la persona que buscas.\n"
             "Ejemplo: Maria Perez",
         )
         return
@@ -89,7 +91,7 @@ async def handle_buscar_button(event: dict) -> None:
     chat_id = get_chat_id(event)
     await send_text_async(
         chat_id,
-        "*Buscar persona*\n\nEscribe el nombre o cedula de la persona que buscas:",
+        "*Buscar persona*\n\nEscribi el nombre o cedula de la persona que buscas:",
     )
 
 
@@ -98,7 +100,7 @@ async def handle_free_text(event: dict) -> None:
     query = event["data"].get("text", "").strip()
 
     if len(query) < 2:
-        await send_text_async(chat_id, "Escribe al menos 2 caracteres para buscar.")
+        await send_text_async(chat_id, "Escribi al menos 2 caracteres para buscar.")
         return
 
     await _realizar_busqueda(chat_id, query)
@@ -124,7 +126,7 @@ async def handle_photo(event: dict) -> None:
                 image_bytes = await resp.read()
     except Exception as e:
         logger.error(f"Error downloading image from {media_url}: {e}")
-        await send_text_async(chat_id, "Error al descargar la imagen. Intenta de nuevo.")
+        await send_text_async(chat_id, "Error al descargar la imagen. Proba de nuevo.")
         return
 
     probe = face_matcher.extract_embedding(image_bytes)
@@ -144,7 +146,7 @@ async def handle_photo(event: dict) -> None:
         await send_text_async(
             chat_id,
             "No se encontraron coincidencias con esa foto.\n\n"
-            "Escribe *1* para buscar por texto o *2* para volver al menu.",
+            "Escribi *1* para buscar por texto o *2* para volver al menu.",
         )
         return
 
@@ -160,7 +162,7 @@ async def handle_photo(event: dict) -> None:
     if len(matches) > 5:
         respuesta += f"... y {len(matches) - 5} resultados mas\n\n"
 
-    respuesta += "Escribe *1* para buscar por texto o *2* para volver al menu."
+    respuesta += "Escribi *1* para buscar por texto o *2* para volver al menu."
     await send_text_async(chat_id, respuesta)
 
 
@@ -173,7 +175,7 @@ async def _realizar_busqueda(chat_id: str, query: str) -> None:
         await send_text_async(
             chat_id,
             f"No encontre resultados para *{query}*.\n\n"
-            "Intenta con otro nombre o cedula.",
+            "Proba con otro nombre o cedula.",
         )
         return
 
@@ -206,7 +208,7 @@ async def handle_reportar_text(event: dict) -> None:
     text = event["data"].get("text", "").strip()
 
     if not text:
-        await send_text_async(chat_id, "Por favor, escribe una respuesta valida.")
+        await send_text_async(chat_id, "Escribi una respuesta valida.")
         return
 
     if text == "/start":
@@ -227,7 +229,7 @@ async def handle_reportar_photo(event: dict) -> None:
     media_url = event["data"].get("mediaUrl", "")
 
     if not media_url:
-        await send_text_async(chat_id, "No se pudo obtener la imagen. Intenta de nuevo o escribe /skip.")
+        await send_text_async(chat_id, "No se pudo obtener la imagen. Proba de nuevo o escribi /skip.")
         return
 
     response = ReportStateMachine.handle_photo(chat_id, media_url)

@@ -54,7 +54,7 @@ class ReportStateMachine:
 
         if text == "/cancel":
             cls.cancel(chat_id)
-            return None
+            return "Reporte cancelado.\n\nEscribi /start para volver al menu."
 
         if step == NOMBRE:
             return cls._step_nombre(state, text)
@@ -81,21 +81,21 @@ class ReportStateMachine:
     @classmethod
     def _step_nombre(cls, state: dict, text: str) -> Optional[str]:
         if len(text) < 2:
-            return "El nombre debe tener al menos 2 caracteres. Intenta de nuevo:"
+            return "El nombre debe tener al menos 2 caracteres. Proba de nuevo:"
         state["nombre"] = text
         state["step"] = CEDULA
-        return f"Nombre: *{text}*\n\nCual es el numero de cedula?\nEscribe /skip si no sabes."
+        return f"Nombre: *{text}*\n\nCual es el numero de cedula?\nEscribi /skip si no sabes."
 
     @classmethod
     def _step_cedula(cls, state: dict, text: str) -> Optional[str]:
         if text == "/skip":
             state["cedula"] = ""
         elif not text.isdigit():
-            return "La cedula debe contener solo numeros. Intenta de nuevo o escribe /skip:"
+            return "La cedula debe contener solo numeros. Proba de nuevo o escribi /skip:"
         else:
             state["cedula"] = text
         state["step"] = UBICACION
-        return "En que ubicacion fue vista por ultima vez?\nEscribe /skip si no sabes."
+        return "En que ubicacion fue vista por ultima vez?\nEscribi /skip si no sabes."
 
     @classmethod
     def _step_ubicacion(cls, state: dict, text: str) -> Optional[str]:
@@ -104,7 +104,7 @@ class ReportStateMachine:
         else:
             state["ubicacion"] = text
         state["step"] = FOTO
-        return "Envia una foto de la persona.\nEscribe /skip si no tienes."
+        return "Envia una foto de la persona.\nEscribi /skip si no tenes."
 
     @classmethod
     def _step_foto_skip(cls, state: dict, text: str) -> Optional[str]:
@@ -113,7 +113,7 @@ class ReportStateMachine:
             state["foto_file_id"] = None
             state["step"] = CONFIRMAR
             return cls._build_summary(state)
-        return "Envia una foto o escribe /skip si no tienes."
+        return "Envia una foto o escribi /skip si no tenes."
 
     @classmethod
     def _step_confirmar(cls, chat_id: str, state: dict, text: str) -> Optional[str]:
@@ -122,7 +122,7 @@ class ReportStateMachine:
             return "Reporte cancelado."
 
         if text != "Confirmar":
-            return "Por favor, escribe *Confirmar* para guardar o *Cancelar* para descartar."
+            return "Escribi *Confirmar* para guardar o *Cancelar* para descartar."
 
         return cls._save_report(chat_id, state)
 
@@ -144,7 +144,7 @@ class ReportStateMachine:
         except Exception as e:
             logger.error(f"Error saving report: {e}")
             cls.cancel(chat_id)
-            return "Error al guardar el reporte. Intenta de nuevo con /start."
+            return "Error al guardar el reporte. Proba de nuevo con /start."
 
         tipo_text = "desaparecido/a" if persona.tipo == TipoReporte.DESAPARECIDO else "encontrado/a"
         cls.cancel(chat_id)
@@ -153,7 +153,7 @@ class ReportStateMachine:
             f"ID: #{persona_id}\n"
             f"Nombre: {persona.nombre}\n"
             f"Tipo: {tipo_text}\n\n"
-            "Escribe /start para volver al menu."
+            "Escribi /start para volver al menu."
         )
 
     @classmethod
@@ -167,7 +167,7 @@ class ReportStateMachine:
             f"Cedula: {state.get('cedula') or 'No informada'}\n"
             f"Ubicacion: {state.get('ubicacion') or 'No informada'}\n"
             f"Foto: {'Enviada' if state.get('foto_path') else 'No enviada'}\n\n"
-            "Escribe *Confirmar* para guardar o *Cancelar* para descartar."
+            "Escribi *Confirmar* para guardar o *Cancelar* para descartar."
         )
 
     @classmethod
