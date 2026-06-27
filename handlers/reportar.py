@@ -114,7 +114,7 @@ async def mostrar_resumen(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     resumen = (
         f"*Resumen del reporte*\n\n"
         f"Tipo: *{tipo_text}*\n"
-        f"Nombre: *{datos.get('nombre', '-')}\n"
+        f"Nombre: *{datos.get('nombre', '-')}*\n"
         f"Cedula: {datos.get('cedula', 'No informada')}\n"
         f"Ubicacion: {datos.get('ubicacion', 'No informada')}\n"
         f"Foto: {'Enviada' if datos.get('foto_path') else 'No enviada'}\n\n"
