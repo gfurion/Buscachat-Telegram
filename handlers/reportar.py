@@ -4,6 +4,7 @@ from telegram import Update
 from telegram.ext import (
     ContextTypes,
     ConversationHandler,
+    CallbackQueryHandler,
     CommandHandler,
     MessageHandler,
     filters,
@@ -191,9 +192,9 @@ async def cancelar(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 reportar_conv = ConversationHandler(
     entry_points=[
-        MessageHandler(
-            filters.Regex("^reportar:(desaparecido|encontrado)$"),
+        CallbackQueryHandler(
             reportar_start,
+            pattern="^reportar:(desaparecido|encontrado)$",
         ),
     ],
     states={
@@ -218,6 +219,5 @@ reportar_conv = ConversationHandler(
     },
     fallbacks=[
         CommandHandler("cancel", cancelar),
-        CommandHandler("skip", recibir_cedula),
     ],
 )
