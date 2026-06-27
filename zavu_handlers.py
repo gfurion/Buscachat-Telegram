@@ -8,63 +8,57 @@ from services.found_people_api import FoundPeopleAPI
 logger = logging.getLogger(__name__)
 api = FoundPeopleAPI()
 
-MENU_BUTTONS = [
-    {"id": "buscar", "title": "1. Buscar persona"},
-    {"id": "menu:registrar", "title": "2. Registrar persona"},
-    {"id": "ayuda", "title": "3. Ayuda"},
-]
+MENU_TEXT = (
+    "*BuscaChat - Reunificacion Familiar*\n\n"
+    "Soy tu asistente para buscar personas desaparecidas o reportar "
+    "personas encontradas tras el terremoto en Venezuela.\n\n"
+    "Selecciona una opcion:\n"
+    "1. *Buscar persona*\n"
+    "2. *Registrar persona*\n"
+    "3. *Ayuda*\n\n"
+    "Escribe el numero de la opcion:"
+)
 
-REGISTRAR_BUTTONS = [
-    {"id": "reportar:desaparecido", "title": "Desaparecido"},
-    {"id": "reportar:encontrado", "title": "Encontrado"},
-    {"id": "menu", "title": "Volver"},
-]
+REGISTRAR_TEXT = (
+    "*Registrar persona*\n\n"
+    "Que tipo de persona quieres registrar?\n"
+    "1. Desaparecido\n"
+    "2. Encontrado\n"
+    "3. Volver\n\n"
+    "Escribe el numero:"
+)
 
-RESULTADO_BUTTONS = [
-    {"id": "buscar", "title": "Buscar otra vez"},
-    {"id": "menu", "title": "Menu principal"},
-]
+AYUDA_TEXT = (
+    "*Ayuda - BuscaChat*\n\n"
+    "*Como funciona:*\n"
+    "- Usa *Buscar* para encontrar personas por nombre o cedula\n"
+    "- Usa *Registrar* para reportar una persona desaparecida o encontrada\n\n"
+    "*Comandos:*\n"
+    "/start - Menu principal\n"
+    "/buscar [nombre] - Buscar persona"
+)
+
+RESULTADO_TEXT = "\nEscribe *1* para buscar otra vez o *2* para volver al menu."
 
 
 async def handle_start(event: dict) -> None:
     chat_id = get_chat_id(event)
-    welcome = (
-        "*BuscaChat - Reunificacion Familiar*\n\n"
-        "Soy tu asistente para buscar personas desaparecidas o reportar "
-        "personas encontradas tras el terremoto en Venezuela.\n\n"
-        "Selecciona una opcion:"
-    )
-    await send_buttons_async(chat_id, welcome, MENU_BUTTONS)
+    await send_text_async(chat_id, MENU_TEXT)
 
 
 async def handle_menu(event: dict) -> None:
     chat_id = get_chat_id(event)
-    await send_buttons_async(
-        chat_id, "*Menu principal*\n\nSelecciona una opcion:", MENU_BUTTONS
-    )
+    await send_text_async(chat_id, MENU_TEXT)
 
 
 async def handle_menu_registrar(event: dict) -> None:
     chat_id = get_chat_id(event)
-    await send_buttons_async(
-        chat_id,
-        "*Registrar persona*\n\nQue tipo de persona quieres registrar?",
-        REGISTRAR_BUTTONS,
-    )
+    await send_text_async(chat_id, REGISTRAR_TEXT)
 
 
 async def handle_ayuda(event: dict) -> None:
     chat_id = get_chat_id(event)
-    texto = (
-        "*Ayuda - BuscaChat*\n\n"
-        "*Como funciona:*\n"
-        "- Usa *Buscar* para encontrar personas por nombre o cedula\n"
-        "- Usa *Registrar* para reportar una persona desaparecida o encontrada\n\n"
-        "*Comandos:*\n"
-        "/start - Menu principal\n"
-        "/buscar [nombre] - Buscar persona"
-    )
-    await send_buttons_async(chat_id, texto, MENU_BUTTONS)
+    await send_text_async(chat_id, AYUDA_TEXT)
 
 
 async def handle_buscar(event: dict) -> None:
@@ -114,11 +108,10 @@ async def _realizar_busqueda(chat_id: str, query: str) -> None:
     resultados = await api.buscar(query)
 
     if not resultados:
-        await send_buttons_async(
+        await send_text_async(
             chat_id,
             f"No encontre resultados para *{query}*.\n\n"
             "Intenta con otro nombre o cedula.",
-            RESULTADO_BUTTONS,
         )
         return
 
@@ -129,7 +122,8 @@ async def _realizar_busqueda(chat_id: str, query: str) -> None:
     if len(resultados) > 5:
         respuesta += f"... y {len(resultados) - 5} resultados mas\n"
 
-    await send_buttons_async(chat_id, respuesta, RESULTADO_BUTTONS)
+    respuesta += RESULTADO_TEXT
+    await send_text_async(chat_id, respuesta)
 
 
 async def send_text_async(chat_id: str, text: str) -> None:
@@ -137,7 +131,7 @@ async def send_text_async(chat_id: str, text: str) -> None:
 
 
 async def send_buttons_async(chat_id: str, text: str, buttons: list) -> None:
-    await asyncio.to_thread(send_buttons, chat_id, text, buttons)
+    await asyncio.to_thread(send_text, chat_id, text)
 
 
 HANDLER_MAP = {
