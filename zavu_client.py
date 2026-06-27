@@ -35,14 +35,26 @@ def send_buttons(to: str, text: str, buttons: list[dict]) -> dict:
     return result
 
 
-def verify_webhook_signature(signature: str, body: bytes) -> bool:
-    if not signature or not Config.ZAVU_WEBHOOK_SECRET:
+def verify_webhook_signature(signature_header: str, body: bytes) -> bool:
+    if not signature_header or not Config.ZAVU_WEBHOOK_SECRET:
         return False
 
+    parts = dict(
+        part.split("=", 1)
+        for part in signature_header.split(",")
+        if "=" in part
+    )
+    timestamp = parts.get("t", "")
+    provided_sig = parts.get("v1", "")
+
+    if not timestamp or not provided_sig:
+        return False
+
+    signed_payload = f"{timestamp}.{body.decode()}"
     expected = hmac.new(
         Config.ZAVU_WEBHOOK_SECRET.encode(),
-        body,
+        signed_payload.encode(),
         hashlib.sha256,
     ).hexdigest()
 
-    return hmac.compare_digest(signature, expected)
+    return hmac.compare_digest(expected, provided_sig)
