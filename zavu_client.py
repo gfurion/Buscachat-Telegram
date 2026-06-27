@@ -28,7 +28,7 @@ def send_buttons(to: str, text: str, buttons: list[dict]) -> dict:
         text=text,
         channel="telegram",
         zavu_sender=Config.ZAVU_SENDER_ID,
-        messageType="buttons",
+        message_type="buttons",
         content={"buttons": buttons},
     )
     logger.info(f"Buttons sent to {to}")
