@@ -28,7 +28,13 @@ RESULTADO_BUTTONS = [
 
 async def handle_start(event: dict) -> None:
     chat_id = get_chat_id(event)
-    await send_text_async(chat_id, "Hola! Bot activo. Chat ID: " + chat_id)
+    welcome = (
+        "*BuscaChat - Reunificacion Familiar*\n\n"
+        "Soy tu asistente para buscar personas desaparecidas o reportar "
+        "personas encontradas tras el terremoto en Venezuela.\n\n"
+        "Selecciona una opcion:"
+    )
+    await send_buttons_async(chat_id, welcome, MENU_BUTTONS)
 
 
 async def handle_menu(event: dict) -> None:
