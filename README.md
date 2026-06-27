@@ -4,8 +4,10 @@ Bot de Telegram para reunificación familiar tras el terremoto en Venezuela (Mw 
 
 Parte del hackathon **Build 4 Venezuela**.
 
-[![Tests](https://img.shields.io/badge/tests-17%2F17%20passing-brightgreen)](https://github.com/gfurion/Buscachat-Telegram)
+[![Tests](https://img.shields.io/badge/tests-30%2F30%20passing-brightgreen)](https://github.com/gfurion/Buscachat-Telegram)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://python.org)
+[![Deploy](https://img.shields.io/badge/deploy-Railway-8B5CF6)](https://buscachat-telegram-production.up.railway.app/health)
+[![Zavu](https://img.shields.io/badge/platform-Zavu-6366F1)](https://zavu.dev)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 ---
@@ -14,53 +16,61 @@ Parte del hackathon **Build 4 Venezuela**.
 
 | Comando / Acción | Descripción |
 |---|---|
-| `/start` | Menú principal con 3 opciones |
-| `/buscar [nombre o cédula]` | Buscar personas vía API externa |
-| **Enviar foto** | Búsqueda por reconocimiento facial (InsightFace/ArcFace) |
-| **Registrar desaparecido** | Flujo guiado: nombre → cédula → ubicación → foto → confirmar |
-| **Registrar encontrado** | Mismo flujo, tipo ENCONTRADO |
+| `/start` | Menú principal textual (3 opciones numéricas) |
+| `1` o `/buscar [nombre]` | Buscar personas por nombre o cédula (API externa: 1397 registros) |
+| `2` o `/registrar desaparecido\|encontrado` | Flujo guiado paso a paso (state machine) |
+| `3` o `/ayuda` | Instrucciones de uso |
+| **Enviar foto** | Búsqueda por reconocimiento facial (InsightFace/ArcFace + DB embeddings) |
+| HMAC-SHA256 | Webhook signature verification activa |
 
 ## 🧱 Stack
 
 - **Python 3.11+**
-- **python-telegram-bot** v22+ — framework del bot
+- **FastAPI + uvicorn** — webhook server
+- **Zavu** — plataforma de mensajería multi-canal (Telegram webhook)
+- **python-telegram-bot** v22+ — handlers originales (conservados, no activos)
 - **aiohttp** — cliente HTTP asíncrono
 - **SQLite** — base de datos local (MVP)
 - **InsightFace / ArcFace** — reconocimiento facial (facerec.py de Venezuela Juntos)
-- **Railway** — hosting (webhook)
-- **pytest + pytest-asyncio** — 17 tests
+- **Railway** — hosting (webhook FastAPI)
+- **pytest + pytest-asyncio** — 30 tests
 
 ## 📁 Estructura del proyecto
 
 ```
 buscachat-telegram/
-├── main.py                    # Entry point: webhook o polling
-├── config.py                  # Settings con validación (12 vars de entorno)
-├── Dockerfile                 # Deploy Railway
-├── railway.toml               # Config Railway
-├── handlers/
-│   ├── start.py               # /start, menú inline, ayuda
+├── zavu_webhook.py            # FastAPI app + webhook endpoint (activo)
+├── zavu_router.py             # Message dispatcher (texto, comandos, menú, fotos)
+├── zavu_handlers.py           # Handlers Zavu: start, buscar, ayuda, registrar, fotos
+├── zavu_client.py             # Zavudev SDK wrapper (send_text)
+├── zavu_state.py              # State machine reportar (nombre→cédula→ubicación→foto→confirmar)
+├── main.py                    # Entry point original (python-telegram-bot polling)
+├── config.py                  # Settings con validación (30+ vars de entorno)
+├── Dockerfile                 # Deploy Railway (CMD uvicorn)
+├── handlers/                  # Handlers originales (python-telegram-bot) — conservados
+│   ├── start.py               # /start, menú, ayuda
 │   ├── buscar.py              # /buscar + foto directa + texto libre
-│   ├── reportar.py            # ConversationHandler 5 pasos
+│   ├── reportar.py            # ConversationHandler 5 pasos (legacy)
 │   └── errores.py             # Error handler global
 ├── services/
 │   ├── database.py            # SQLite: personas, reportes, embeddings
 │   ├── found_people_api.py    # Cliente HTTP → found-people-ve-bot
-│   ├── face_matching.py       # Wrapper facerec.py
+│   ├── face_matching.py       # Wrapper facerec.py (ArcFace)
 │   └── normalizer.py          # Normalización de texto
 ├── models/
 │   └── persona.py             # Persona, Reporte, TipoReporte
 ├── keyboards/
-│   └── teclados.py            # Menús inline de Telegram
+│   └── teclados.py            # Menús (legacy python-telegram-bot)
 ├── lib/
 │   └── facerec.py             # ArcFace standalone (Venezuela Juntos)
-└── tests/                     # 17 tests
+└── tests/                     # 30 tests
     ├── test_database.py
     ├── test_found_people_api.py
     ├── test_face_matching.py
     ├── test_start.py
     ├── test_buscar.py
-    └── test_reportar.py
+    ├── test_reportar.py
+    └── test_zavu.py           # 13 tests del router Zavu
 ```
 
 ## 🔧 Setup local
@@ -98,10 +108,20 @@ python main.py
 
 ## 🚂 Deploy en Railway
 
-1. Conectá tu repo de GitHub a [Railway](https://railway.app)
-2. Railway detecta automáticamente `Dockerfile` y `railway.toml`
+1. Conectá tu repo a [Railway](https://railway.app)
+2. Railway detecta automáticamente `Dockerfile` (CMD `uvicorn zavu_webhook:app`)
 3. Configurá las variables de entorno desde `.env.example`
-4. El webhook se configura solo al arrancar (`PUBLIC_BASE_URL`)
+4. El webhook de Zavu apunta a `https://buscachat-telegram-production.up.railway.app/webhook`
+
+### Variables de entorno clave
+
+| Variable | Descripción |
+|---|---|
+| `ZAVU_API_KEY` | API key de Zavu |
+| `ZAVU_SENDER_ID` | ID del sender (Bot de Telegram) |
+| `ZAVU_WEBHOOK_SECRET` | Secret para firma HMAC-SHA256 |
+| `TELEGRAM_BOT_TOKEN` | Token de @BotFather |
+| `FOUND_PEOPLE_API_URL` | API externa de búsqueda |
 
 ## 📋 Estado del proyecto
 
@@ -113,9 +133,22 @@ python main.py
 | BUS-24 | Flujo reportar desaparecido | ✅ |
 | BUS-25 | Flujo reportar encontrado | ✅ |
 | BUS-26 | DB con embeddings | ✅ |
-| BUS-27 | Deploy Railway | ⏳ Configuración pendiente |
-| BUS-28 | Tests | ✅ 17/17 |
+| BUS-27 | Deploy Railway | ✅ Producción |
+| BUS-28 | Tests | ✅ 30/30 |
+| BUS-29 | Integración Zavu (webhook, menú, handlers) | ✅ |
+| — | HMAC signature verification | ✅ |
+| — | State machine reportar (Zavu) | ✅ |
+
+## 🔄 Flujo Zavu
+
+```
+Usuario Telegram → Telegram API → Zavu → Railway (/webhook) → FastAPI → router → handler → Zavu API → Telegram
+```
+
+- Webhook recibe `X-Zavu-Signature: t=<ts>,v1=<hmac>` y verifica HMAC-SHA256
+- Router clasifica: comandos, menú numérico, texto libre, imágenes
+- State machine maneja flujo reportar con 5 pasos (en memoria, por chat_id)
 
 ---
 
-Build 4 Venezuela · [Dashboard](https://aeterna.red/build4venezuela/) · [Discord](https://build4venezuela.com/discord)
+Build 4 Venezuela · [Dashboard](https://aeterna.red/build4venezuela/) · [Discord](https://build4venezuela.com/discord) · [Bot](https://t.me/BuscaChatVzla_bot)
