@@ -22,10 +22,9 @@ MENU_TEXT = (
 REGISTRAR_TEXT = (
     "*Registrar persona*\n\n"
     "Que tipo de persona quieres registrar?\n"
-    "1. Desaparecido\n"
-    "2. Encontrado\n"
-    "3. Volver\n\n"
-    "Escribe el numero:"
+    "/registrar desaparecido - Persona desaparecida\n"
+    "/registrar encontrado - Persona encontrada\n"
+    "/start - Volver al menu principal"
 )
 
 AYUDA_TEXT = (
@@ -126,6 +125,17 @@ async def _realizar_busqueda(chat_id: str, query: str) -> None:
     await send_text_async(chat_id, respuesta)
 
 
+async def handle_registrar_cmd(event: dict) -> None:
+    chat_id = get_chat_id(event)
+    await send_text_async(
+        chat_id,
+        "*Funcionalidad en desarrollo*\n\n"
+        "El flujo de registro estara disponible pronto.\n\n"
+        "Mientras tanto, usa /buscar para encontrar personas.\n"
+        "Escribe /start para volver al menu.",
+    )
+
+
 async def send_text_async(chat_id: str, text: str) -> None:
     await asyncio.to_thread(send_text, chat_id, text)
 
@@ -138,6 +148,8 @@ HANDLER_MAP = {
     "start": handle_start,
     "menu:buscar": handle_buscar_button,
     "menu:registrar": handle_menu_registrar,
+    "ayuda": handle_ayuda,
+    "registrar_cmd": handle_registrar_cmd,
     "button:menu": handle_menu,
     "button:menu:registrar": handle_menu_registrar,
     "button:ayuda": handle_ayuda,
