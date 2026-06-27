@@ -8,8 +8,9 @@ from fastapi.responses import JSONResponse
 from cachetools import TTLCache
 
 from config import Config
-from zavu_router import route_event
+from zavu_router import route_event, get_chat_id
 from zavu_handlers import HANDLER_MAP
+from zavu_state import ReportStateMachine
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -46,14 +47,6 @@ def _verify_signature(signature_header: str, body: bytes) -> bool:
         hashlib.sha256,
     ).hexdigest()
 
-    # DEBUG: show HMAC comparison
-    logger.info(f"HMAC DEBUG - Our secret: {Config.ZAVU_WEBHOOK_SECRET[:15]}...")
-    logger.info(f"HMAC DEBUG - Timestamp: {timestamp}")
-    logger.info(f"HMAC DEBUG - Signed payload (first 100): {signed_payload[:100]}")
-    logger.info(f"HMAC DEBUG - Our HMAC: {expected}")
-    logger.info(f"HMAC DEBUG - Zavu HMAC: {provided_sig}")
-    logger.info(f"HMAC DEBUG - Match: {expected == provided_sig}")
-
     return hmac.compare_digest(expected, provided_sig)
 
 
@@ -62,18 +55,9 @@ async def webhook(request: Request):
     signature = request.headers.get("X-Zavu-Signature", "")
     body = await request.body()
 
-    # DEBUG: log everything Zavu sends
-    logger.info(f"WEBHOOK DEBUG - Headers: {dict(request.headers)}")
-    logger.info(f"WEBHOOK DEBUG - Signature header: {signature}")
-    logger.info(f"WEBHOOK DEBUG - Body: {body.decode()[:500]}")
-
-    # Try to verify signature
-    sig_valid = _verify_signature(signature, body)
-    logger.info(f"WEBHOOK DEBUG - Signature valid: {sig_valid}")
-
-    if not sig_valid:
-        logger.warning("WEBHOOK DEBUG - Signature invalid, but processing anyway (debug mode)")
-        # TEMPORARY: don't reject, just log and continue
+    if not _verify_signature(signature, body):
+        logger.warning("Webhook signature verification failed")
+        raise HTTPException(status_code=401, detail="Invalid signature")
 
     event = await request.json()
     event_type = event.get("type", "")
@@ -90,17 +74,28 @@ async def webhook(request: Request):
     logger.info(f"Event {event_id}: {event_type}")
 
     try:
-        handler_name = route_event(event)
+        chat_id = get_chat_id(event)
+        active_route = ReportStateMachine.get_route(chat_id)
 
-        if handler_name:
-            handler = HANDLER_MAP.get(handler_name)
+        if active_route:
+            handler = HANDLER_MAP.get(active_route)
             if handler:
                 await handler(event)
-                logger.info(f"Event {event_id} handled by {handler_name}")
+                logger.info(f"Event {event_id}: state machine step {active_route}")
             else:
-                logger.warning(f"No handler for route: {handler_name}")
+                logger.warning(f"No handler for state route: {active_route}")
         else:
-            logger.info(f"Event {event_id}: no route matched")
+            handler_name = route_event(event)
+
+            if handler_name:
+                handler = HANDLER_MAP.get(handler_name)
+                if handler:
+                    await handler(event)
+                    logger.info(f"Event {event_id} handled by {handler_name}")
+                else:
+                    logger.warning(f"No handler for route: {handler_name}")
+            else:
+                logger.info(f"Event {event_id}: no route matched")
 
     except Exception as e:
         logger.error(f"Error processing event {event_id}: {e}", exc_info=True)
