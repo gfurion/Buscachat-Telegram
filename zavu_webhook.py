@@ -19,7 +19,7 @@ app = FastAPI(title="BuscaChat Zavu Webhook")
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "code": "message_type_v2"}
 
 
 @app.post("/webhook")
