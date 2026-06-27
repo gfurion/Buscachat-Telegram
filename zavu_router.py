@@ -32,6 +32,14 @@ def route_event(event: dict) -> str | None:
     if text.startswith("/"):
         return None
 
+    # Numeric menu selections
+    if text == "1":
+        return "menu:buscar"
+    if text == "2":
+        return "menu:registrar"
+    if text == "3":
+        return "ayuda"
+
     if len(text) >= 2:
         return "free_text"
 

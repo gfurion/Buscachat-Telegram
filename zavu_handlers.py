@@ -136,6 +136,8 @@ async def send_buttons_async(chat_id: str, text: str, buttons: list) -> None:
 
 HANDLER_MAP = {
     "start": handle_start,
+    "menu:buscar": handle_buscar_button,
+    "menu:registrar": handle_menu_registrar,
     "button:menu": handle_menu,
     "button:menu:registrar": handle_menu_registrar,
     "button:ayuda": handle_ayuda,
