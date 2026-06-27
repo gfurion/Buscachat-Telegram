@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+.env
+data/
+fotos/
+bot_data/
+*.sqlite
+*.db
+.env.local
