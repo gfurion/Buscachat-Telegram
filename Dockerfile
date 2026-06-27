@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN chown -R appuser:appuser /app /data
+RUN mkdir -p /data && chown -R appuser:appuser /app /data
 
 ENV DATA_DIR=/data
 ENV PYTHONUNBUFFERED=1
