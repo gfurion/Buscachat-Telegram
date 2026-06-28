@@ -26,6 +26,8 @@ def route_event(event: dict) -> str | None:
         return "buscar"
     if text.startswith("/ayuda"):
         return "ayuda"
+    if text.startswith("/info"):
+        return "info"
     if text.startswith("/registrar"):
         return "registrar_cmd"
     if text.startswith("/emergencia") or text.startswith("/telefonos"):

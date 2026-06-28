@@ -53,7 +53,23 @@ AYUDA_TEXT = (
     "▸ /buscar \\[nombre\\] — Buscar persona\n"
     "▸ /registrar — Reportar persona\n"
     "▸ /refugios — Refugios cercanos\n"
-    "▸ /emergencia — Telefonos de emergencia"
+    "▸ /emergencia — Telefonos de emergencia\n"
+    "▸ /info — Fuentes de datos"
+)
+
+INFO_TEXT = (
+    "📊 *Fuentes de datos de BuscaChat*\n\n"
+    "Este bot consulta las siguientes fuentes:\n\n"
+    "▸ *ReportaVNZLA* — 15.000+ registros estructurados\n"
+    "  (nombre, cedula, edad, ubicacion)\n\n"
+    "▸ *found-people-ve-bot* — 35.000+ registros\n"
+    "  de 5 plataformas: venezuelatebusca.com,\n"
+    "  encuentralos.tecnosoft.dev,\n"
+    "  desaparecidosterremotovenezuela.com,\n"
+    "  terremotovenezuela.app\n\n"
+    "▸ *AcopioVE* — 575 centros de acopio,\n"
+    "  refugios y telefonos de emergencia\n\n"
+    "Proyecto voluntario de Build 4 Venezuela."
 )
 
 RESULTADO_TEXT = "\n🔁 Escribi *1* para buscar otra vez o *2* para volver al menu."
@@ -79,6 +95,11 @@ async def handle_menu_registrar(event: dict) -> None:
 async def handle_ayuda(event: dict) -> None:
     chat_id = get_chat_id(event)
     await send_text_async(chat_id, AYUDA_TEXT)
+
+
+async def handle_info(event: dict) -> None:
+    chat_id = get_chat_id(event)
+    await send_text_async(chat_id, INFO_TEXT)
 
 
 async def handle_buscar(event: dict) -> None:
@@ -321,6 +342,7 @@ HANDLER_MAP = {
     "menu:refugios": handle_refugios,
     "menu:emergencia": handle_emergencia,
     "ayuda": handle_ayuda,
+    "info": handle_info,
     "emergencia": handle_emergencia,
     "refugios": handle_refugios,
     "registrar_cmd": handle_registrar_cmd,

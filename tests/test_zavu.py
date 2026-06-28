@@ -41,6 +41,10 @@ class TestRouter:
         event = make_event(text="/ayuda")
         assert route_event(event) == "ayuda"
 
+    def test_info_command(self):
+        event = make_event(text="/info")
+        assert route_event(event) == "info"
+
     def test_free_text_valid(self):
         event = make_event(text="Maria")
         assert route_event(event) == "free_text"

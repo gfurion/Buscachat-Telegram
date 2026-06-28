@@ -143,6 +143,14 @@ class TestZavuHandlers:
         asyncio.run(handle_photo(make_event(message_type="image")))
         assert any("no esta disponible" in s for s in sent)
 
+    def test_handle_info(self, monkeypatch):
+        sent = []
+        monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: sent.append(text))
+        import asyncio
+        from zavu_handlers import handle_info
+        asyncio.run(handle_info(make_event(text="/info")))
+        assert any("Fuentes" in s for s in sent)
+
     def test_handle_registrar_cmd_desaparecido(self, monkeypatch):
         monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: None)
         from zavu_state import ReportStateMachine
