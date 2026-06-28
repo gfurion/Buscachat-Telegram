@@ -1,23 +1,21 @@
 import asyncio
 import logging
 
-from cachetools import TTLCache
-
 from zavu_client import send_text
 from zavu_router import get_chat_id
-from config import Config
-from services.found_people_api import FoundPeopleAPI
+from services.face_matching import FaceMatcher
 from services.acopiove_api import AcopioVEAPI
-from services.reportavnzla_api import ReportaVNZLAAPI
+from services.people_search import PeopleSearchAggregator
 from zavu_state import ReportStateMachine
 
 logger = logging.getLogger(__name__)
-api = FoundPeopleAPI()
+people_search = PeopleSearchAggregator()
 acopiove = AcopioVEAPI()
-reportavnzla = ReportaVNZLAAPI()
 
-_refugios_waiting = TTLCache(maxsize=10000, ttl=600)
-_registrar_waiting = TTLCache(maxsize=10000, ttl=600)
+_refugios_waiting: dict[str, bool] = {}
+_registrar_waiting: dict[str, bool] = {}
+_search_results_state: dict[str, dict] = {}
+SEARCH_PAGE_SIZE = 5
 
 MENU_TEXT = (
     "🔍 *BuscaChat — Reunificacion Familiar*\n\n"
@@ -72,38 +70,68 @@ INFO_TEXT = (
     "Proyecto voluntario de Build 4 Venezuela."
 )
 
-RESULTADO_TEXT = "\n🔁 Escribi *1* para buscar otra vez o *2* para volver al menu."
+RESULTADO_TEXT = "\n🔁 Escribe *2* para hacer otra busqueda o *3* para volver al menu."
+
+
+def clear_search_state(chat_id: str) -> None:
+    _search_results_state.pop(chat_id, None)
+
+
+def get_search_results_route(chat_id: str, event: dict) -> str | None:
+    if chat_id not in _search_results_state:
+        return None
+
+    data = event.get("data", {})
+    if data.get("messageType") != "text":
+        return None
+
+    text = data.get("text", "").strip()
+    if text == "1":
+        return "search:more"
+    if text == "2":
+        return "search:new"
+    if text == "3":
+        return "search:menu"
+    if text in ("/cancel", "Cancelar"):
+        return "search:menu"
+    return None
 
 
 async def handle_start(event: dict) -> None:
     chat_id = get_chat_id(event)
     ReportStateMachine.cancel(chat_id)
+    clear_search_state(chat_id)
     await send_text_async(chat_id, MENU_TEXT)
 
 
 async def handle_menu(event: dict) -> None:
     chat_id = get_chat_id(event)
+    clear_search_state(chat_id)
     await send_text_async(chat_id, MENU_TEXT)
 
 
 async def handle_menu_registrar(event: dict) -> None:
     chat_id = get_chat_id(event)
+    clear_search_state(chat_id)
     _registrar_waiting[chat_id] = True
     await send_text_async(chat_id, REGISTRAR_TEXT)
 
 
 async def handle_ayuda(event: dict) -> None:
     chat_id = get_chat_id(event)
+    clear_search_state(chat_id)
     await send_text_async(chat_id, AYUDA_TEXT)
 
 
 async def handle_info(event: dict) -> None:
     chat_id = get_chat_id(event)
+    clear_search_state(chat_id)
     await send_text_async(chat_id, INFO_TEXT)
 
 
 async def handle_buscar(event: dict) -> None:
     chat_id = get_chat_id(event)
+    clear_search_state(chat_id)
     text = event["data"].get("text", "").strip()
     parts = text.split(maxsplit=1)
     query = parts[1] if len(parts) > 1 else ""
@@ -122,6 +150,7 @@ async def handle_buscar(event: dict) -> None:
 
 async def handle_buscar_button(event: dict) -> None:
     chat_id = get_chat_id(event)
+    clear_search_state(chat_id)
     await send_text_async(
         chat_id,
         "*Buscar persona*\n\nEscribi el nombre o cedula de la persona que buscas:",
@@ -166,32 +195,12 @@ async def handle_photo(event: dict) -> None:
 
 
 async def _realizar_busqueda(chat_id: str, query: str) -> None:
+    clear_search_state(chat_id)
     await send_text_async(chat_id, "Buscando...")
 
-    resultados_api = await api.buscar(query)
-    resultados_rvnzla = await reportavnzla.buscar_personas(query=query)
+    resultados = await people_search.buscar(query)
 
-    seen = set()
-    respuesta = f"*Resultados para {query}*\n\n"
-    count = 0
-
-    for persona in resultados_rvnzla[:5]:
-        nombre = (persona.get("nombre", "") + " " + persona.get("apellido", "")).strip()
-        if nombre and nombre.lower() not in seen:
-            seen.add(nombre.lower())
-            count += 1
-            respuesta += f"{count}. {reportavnzla.formatear_persona(persona)}\n\n"
-
-    for persona in resultados_api:
-        if count >= 5:
-            break
-        nombre = persona.get("fullName", "")
-        if nombre and nombre.lower() not in seen:
-            seen.add(nombre.lower())
-            count += 1
-            respuesta += f"{count}. {api.formatear_resultado(persona)}\n\n"
-
-    if count == 0:
+    if not resultados:
         await send_text_async(
             chat_id,
             f"No encontre resultados para *{query}*.\n\n"
@@ -199,18 +208,82 @@ async def _realizar_busqueda(chat_id: str, query: str) -> None:
         )
         return
 
-    total_rvnzla = len(resultados_rvnzla)
-    total_api = len(resultados_api)
-    extras = max(0, total_rvnzla - 5) + max(0, total_api - count)
-    if extras > 0:
-        respuesta += f"... y {extras} resultados mas\n\n"
+    respuesta = _format_search_page(query, resultados, 0)
 
-    respuesta += RESULTADO_TEXT
+    _search_results_state[chat_id] = {
+        "query": query,
+        "results": resultados,
+        "next_index": min(SEARCH_PAGE_SIZE, len(resultados)),
+    }
     await send_text_async(chat_id, respuesta)
+
+
+async def handle_search_more(event: dict) -> None:
+    chat_id = get_chat_id(event)
+    state = _search_results_state.get(chat_id)
+
+    if not state:
+        await send_text_async(chat_id, MENU_TEXT)
+        return
+
+    next_index = state["next_index"]
+    results = state["results"]
+
+    if next_index >= len(results):
+        await send_text_async(
+            chat_id,
+            "*Ya mostre todos los resultados disponibles.*\n\n"
+            "Escribe *2* para hacer otra busqueda o *3* para volver al menu.",
+        )
+        return
+
+    response = _format_search_page(state["query"], results, next_index)
+    state["next_index"] = min(next_index + SEARCH_PAGE_SIZE, len(results))
+    await send_text_async(chat_id, response)
+
+
+async def handle_search_new(event: dict) -> None:
+    chat_id = get_chat_id(event)
+    clear_search_state(chat_id)
+    await send_text_async(
+        chat_id,
+        "*Buscar persona*\n\nEscribi el nombre o cedula de la persona que buscas:",
+    )
+
+
+async def handle_search_menu(event: dict) -> None:
+    chat_id = get_chat_id(event)
+    clear_search_state(chat_id)
+    await send_text_async(chat_id, MENU_TEXT)
+
+
+def _format_search_page(query: str, results: list, start_index: int) -> str:
+    end_index = min(start_index + SEARCH_PAGE_SIZE, len(results))
+    response = f"*Resultados para {query}*\n\n"
+
+    for i, persona in enumerate(results[start_index:end_index], start_index + 1):
+        response += f"{i}. {people_search.formatear_resultado(persona)}\n\n"
+
+    total = len(results)
+    shown = end_index
+    remaining = total - shown
+
+    response += f"Mostre {shown} de {total} resultados.\n\n"
+    if remaining > 0:
+        next_count = min(SEARCH_PAGE_SIZE, remaining)
+        response += (
+            f"Escribe *1* para ver {next_count} mas, "
+            "*2* para hacer otra busqueda o *3* para volver al menu."
+        )
+    else:
+        response += "Escribe *2* para hacer otra busqueda o *3* para volver al menu."
+
+    return response
 
 
 async def handle_registrar_cmd(event: dict) -> None:
     chat_id = get_chat_id(event)
+    clear_search_state(chat_id)
     text = event["data"].get("text", "").strip()
     _registrar_waiting.pop(chat_id, None)
 
@@ -262,6 +335,7 @@ async def handle_reportar_photo(event: dict) -> None:
 
 async def handle_emergencia(event: dict) -> None:
     chat_id = get_chat_id(event)
+    clear_search_state(chat_id)
     await send_text_async(chat_id, "Buscando telefonos de emergencia...")
 
     telefonos = await acopiove.buscar_telefonos()
@@ -286,6 +360,7 @@ async def handle_emergencia(event: dict) -> None:
 
 async def handle_refugios(event: dict) -> None:
     chat_id = get_chat_id(event)
+    clear_search_state(chat_id)
     text = event["data"].get("text", "").strip()
     parts = text.split(maxsplit=1)
     ciudad = parts[1] if len(parts) > 1 else ""
@@ -352,6 +427,10 @@ HANDLER_MAP = {
     "button:buscar": handle_buscar_button,
     "buscar": handle_buscar,
     "free_text": handle_free_text,
+    "photo": handle_photo,
+    "search:more": handle_search_more,
+    "search:new": handle_search_new,
+    "search:menu": handle_search_menu,
     # State machine handlers
     "reportar:step:text": handle_reportar_text,
     "reportar:step:foto": handle_reportar_photo,

@@ -9,6 +9,52 @@ def api():
 
 
 @pytest.mark.asyncio
+async def test_buscar_personas_returns_results(api):
+    mock_data = {
+        "data": [
+            {"nombre": "Maria Gonzales", "estado": "localizado", "ubicacion_general": "Hospital Caracas"},
+            {"nombre": "Maria Perez", "estado": "desaparecido"},
+        ]
+    }
+    mock_resp = AsyncMock()
+    mock_resp.status = 200
+    mock_resp.json = AsyncMock(return_value=mock_data)
+    mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
+    mock_resp.__aexit__ = AsyncMock(return_value=False)
+
+    with patch("services.acopiove_api.aiohttp.ClientSession") as mock_session:
+        mock_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.return_value.__aexit__ = AsyncMock(return_value=False)
+        mock_session.get = MagicMock(return_value=mock_resp)
+
+        results = await api.buscar_personas("Maria")
+        assert len(results) == 2
+        assert results[0]["nombre"] == "Maria Gonzales"
+
+
+@pytest.mark.asyncio
+async def test_buscar_personas_empty_on_short_query(api):
+    results = await api.buscar_personas("M")
+    assert results == []
+
+
+@pytest.mark.asyncio
+async def test_buscar_personas_empty_on_error(api):
+    mock_resp = AsyncMock()
+    mock_resp.status = 500
+    mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
+    mock_resp.__aexit__ = AsyncMock(return_value=False)
+
+    with patch("services.acopiove_api.aiohttp.ClientSession") as mock_session:
+        mock_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.return_value.__aexit__ = AsyncMock(return_value=False)
+        mock_session.get = MagicMock(return_value=mock_resp)
+
+        results = await api.buscar_personas("Maria")
+        assert results == []
+
+
+@pytest.mark.asyncio
 async def test_buscar_puntos_returns_results(api):
     mock_data = {
         "data": [

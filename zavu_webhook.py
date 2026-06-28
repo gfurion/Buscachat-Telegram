@@ -9,7 +9,7 @@ from cachetools import TTLCache
 
 from config import Config
 from zavu_router import route_event, get_chat_id
-from zavu_handlers import HANDLER_MAP
+from zavu_handlers import HANDLER_MAP, get_search_results_route
 from zavu_state import ReportStateMachine
 
 logging.basicConfig(level=logging.INFO)
@@ -100,7 +100,7 @@ async def webhook(request: Request):
             else:
                 logger.warning(f"No handler for state route: {active_route}")
         else:
-            handler_name = route_event(event)
+            handler_name = get_search_results_route(chat_id, event) or route_event(event)
 
             if handler_name:
                 handler = HANDLER_MAP.get(handler_name)
