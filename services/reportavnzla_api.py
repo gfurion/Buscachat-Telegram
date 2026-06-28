@@ -1,5 +1,5 @@
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 import aiohttp
 
@@ -50,36 +50,6 @@ class ReportaVNZLAAPI:
         except Exception as e:
             logger.error(f"Unexpected error calling ReportaVNZLA /personas: {e}")
             return []
-
-    async def buscar_por_cedula(self, cedula: str, limit: int = 5) -> List[Dict]:
-        return await self.buscar_personas(cedula=cedula, limit=limit)
-
-    async def buscar_por_ubicacion(self, ubicacion: str, limit: int = 10) -> List[Dict]:
-        try:
-            async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                params = {"ubicacion": ubicacion, "limit": str(limit)}
-                async with session.get(f"{BASE_URL}/personas", params=params) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        return data.get("data", [])
-                    else:
-                        logger.warning(f"ReportaVNZLA ubicacion search returned {resp.status}")
-                        return []
-        except Exception as e:
-            logger.error(f"Error in ReportaVNZLA location search: {e}")
-            return []
-
-    async def get_stats(self) -> Optional[Dict]:
-        try:
-            async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                async with session.get(f"{BASE_URL}/stats") as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        return data.get("data", {})
-                    return None
-        except Exception as e:
-            logger.error(f"Error getting ReportaVNZLA stats: {e}")
-            return None
 
     def formatear_persona(self, persona: Dict) -> str:
         nombre = persona.get("nombre", "")

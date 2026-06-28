@@ -2,11 +2,11 @@ import logging
 from typing import Optional
 
 from models.persona import Persona, TipoReporte
-from services.database import Database
+from services.database import get_db
 
 logger = logging.getLogger(__name__)
 
-db = Database()
+db = get_db()
 
 NOMBRE = "reportar:step:nombre"
 CEDULA = "reportar:step:cedula"

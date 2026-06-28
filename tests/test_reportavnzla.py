@@ -58,7 +58,7 @@ async def test_buscar_personas_empty_on_error(api):
 
 
 @pytest.mark.asyncio
-async def test_buscar_por_cedula_returns_results(api):
+async def test_buscar_por_cedula(api):
     mock_data = {
         "data": [
             {"nombre": "Juan", "apellido": "Perez", "cedula": "V-12345678", "estado": "buscado"},
@@ -75,7 +75,7 @@ async def test_buscar_por_cedula_returns_results(api):
         mock_session.return_value.__aexit__ = AsyncMock(return_value=False)
         mock_session.get = MagicMock(return_value=mock_resp)
 
-        results = await api.buscar_por_cedula("12345678")
+        results = await api.buscar_personas(cedula="12345678")
         assert len(results) == 1
         assert results[0]["cedula"] == "V-12345678"
 

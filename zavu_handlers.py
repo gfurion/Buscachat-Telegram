@@ -328,8 +328,6 @@ HANDLER_MAP = {
     "button:menu:registrar": handle_menu_registrar,
     "button:ayuda": handle_ayuda,
     "button:buscar": handle_buscar_button,
-    "button:reportar:desaparecido": handle_menu,
-    "button:reportar:encontrado": handle_menu,
     "buscar": handle_buscar,
     "free_text": handle_free_text,
     # State machine handlers

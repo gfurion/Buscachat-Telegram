@@ -207,3 +207,13 @@ class Database:
             reporter_chat_id=row["reporter_chat_id"],
             created_at=datetime.fromisoformat(row["created_at"]),
         )
+
+
+_db_instance: Optional[Database] = None
+
+
+def get_db() -> Database:
+    global _db_instance
+    if _db_instance is None:
+        _db_instance = Database()
+    return _db_instance
