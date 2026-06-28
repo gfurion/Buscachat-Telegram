@@ -31,6 +31,10 @@ def route_event(event: dict) -> str | None:
         return "ayuda"
     if text.startswith("/registrar"):
         return "registrar_cmd"
+    if text.startswith("/emergencia") or text.startswith("/telefonos"):
+        return "emergencia"
+    if text.startswith("/refugios") or text.startswith("/centros"):
+        return "refugios"
     if text.startswith("/"):
         return None
 
@@ -40,6 +44,10 @@ def route_event(event: dict) -> str | None:
     if text == "2":
         return "menu:registrar"
     if text == "3":
+        return "menu:refugios"
+    if text == "4":
+        return "menu:emergencia"
+    if text == "5":
         return "ayuda"
 
     if len(text) >= 2:

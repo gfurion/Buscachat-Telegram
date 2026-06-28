@@ -8,11 +8,15 @@ from zavu_router import get_chat_id
 from config import Config
 from services.found_people_api import FoundPeopleAPI
 from services.face_matching import FaceMatcher
+from services.acopiove_api import AcopioVEAPI
 from zavu_state import ReportStateMachine
 
 logger = logging.getLogger(__name__)
 api = FoundPeopleAPI()
+acopiove = AcopioVEAPI()
 face_matcher = FaceMatcher()
+
+_refugios_waiting: dict[str, bool] = {}
 
 MENU_TEXT = (
     "🔍 *BuscaChat — Reunificacion Familiar*\n\n"
@@ -21,7 +25,9 @@ MENU_TEXT = (
     "*¿Que queres hacer?*\n\n"
     "1️⃣ *Buscar persona* — por nombre o cedula\n"
     "2️⃣ *Registrar persona* — desaparecida o encontrada\n"
-    "3️⃣ *Ayuda* — como funciona el bot\n\n"
+    "3️⃣ *Refugios cercanos* — centros de ayuda\n"
+    "4️⃣ *Telefonos de emergencia*\n"
+    "5️⃣ *Ayuda* — como funciona el bot\n\n"
     "Escribi el numero:"
 )
 
@@ -38,11 +44,15 @@ AYUDA_TEXT = (
     "*¿Como funciona?*\n"
     "🔎 *Buscar* — encontra personas por nombre o cedula\n"
     "📝 *Registrar* — reporta una persona desaparecida o encontrada\n"
-    "📸 *Foto* — busca por reconocimiento facial\n\n"
+    "📸 *Foto* — busca por reconocimiento facial\n"
+    "🏠 *Refugios* — centros de ayuda cercanos\n"
+    "📞 *Emergencia* — telefonos de emergencia\n\n"
     "*Comandos:*\n"
     "▸ /start — Menu principal\n"
     "▸ /buscar \\[nombre\\] — Buscar persona\n"
-    "▸ /registrar — Reportar persona"
+    "▸ /registrar — Reportar persona\n"
+    "▸ /refugios — Refugios cercanos\n"
+    "▸ /emergencia — Telefonos de emergencia"
 )
 
 RESULTADO_TEXT = "\n🔁 Escribi *1* para buscar otra vez o *2* para volver al menu."
@@ -101,6 +111,10 @@ async def handle_free_text(event: dict) -> None:
 
     if len(query) < 2:
         await send_text_async(chat_id, "Escribi al menos 2 caracteres para buscar.")
+        return
+
+    if _refugios_waiting.pop(chat_id, None):
+        await _buscar_refugios(chat_id, query)
         return
 
     await _realizar_busqueda(chat_id, query)
@@ -254,6 +268,85 @@ async def handle_reportar_photo(event: dict) -> None:
     await send_text_async(chat_id, response)
 
 
+async def handle_emergencia(event: dict) -> None:
+    chat_id = get_chat_id(event)
+    await send_text_async(chat_id, "Buscando telefonos de emergencia...")
+
+    telefonos = await acopiove.buscar_telefonos()
+
+    if not telefonos:
+        await send_text_async(
+            chat_id,
+            "No se encontraron telefonos de emergencia.\n\n"
+            "Numeros generales:\n"
+            "▸ 911 — Emergencias\n"
+            "▸ 171 — Proteccion Civil\n"
+            "▸ 0800 — Cruz Roja",
+        )
+        return
+
+    respuesta = "📞 *Telefonos de emergencia*\n\n"
+    for tel in telefonos[:8]:
+        respuesta += f"{acopiove.formatear_telefono(tel)}\n\n"
+
+    await send_text_async(chat_id, respuesta)
+
+
+async def handle_refugios(event: dict) -> None:
+    chat_id = get_chat_id(event)
+    text = event["data"].get("text", "").strip()
+    parts = text.split(maxsplit=1)
+    ciudad = parts[1] if len(parts) > 1 else ""
+
+    if ciudad:
+        _refugios_waiting.pop(chat_id, None)
+        await _buscar_refugios(chat_id, ciudad)
+        return
+
+    _refugios_waiting[chat_id] = True
+    await send_text_async(
+        chat_id,
+        "🏠 *Refugios y centros de ayuda*\n\n"
+        "Escribe el nombre de tu ciudad para buscar refugios cercanos.\n"
+        "Ejemplo: Caracas, Catia La Mar, La Guaira",
+    )
+
+
+async def handle_refugios_ciudad(event: dict) -> None:
+    chat_id = get_chat_id(event)
+    text = event["data"].get("text", "").strip()
+
+    if len(text) < 2:
+        await send_text_async(chat_id, "Escribi el nombre de una ciudad (minimo 2 caracteres).")
+        return
+
+    await _buscar_refugios(chat_id, text)
+
+
+async def _buscar_refugios(chat_id: str, ciudad: str) -> None:
+    await send_text_async(chat_id, f"Buscando refugios en {ciudad}...")
+
+    puntos = await acopiove.buscar_puntos(tipo="refugio", ciudad=ciudad)
+
+    if not puntos:
+        await send_text_async(
+            chat_id,
+            f"No se encontraron refugios en *{ciudad}*.\n\n"
+            "Intenta con otra ciudad o escribe /start para volver al menu.",
+        )
+        return
+
+    respuesta = f"🏠 *Refugios en {ciudad}*\n\n"
+    for punto in puntos[:5]:
+        respuesta += f"{acopiove.formatear_punto(punto)}\n\n"
+
+    if len(puntos) > 5:
+        respuesta += f"... y {len(puntos) - 5} mas\n\n"
+
+    respuesta += "Escribe /start para volver al menu."
+    await send_text_async(chat_id, respuesta)
+
+
 async def send_text_async(chat_id: str, text: str) -> None:
     try:
         await asyncio.to_thread(send_text, chat_id, text)
@@ -269,7 +362,11 @@ HANDLER_MAP = {
     "start": handle_start,
     "menu:buscar": handle_buscar_button,
     "menu:registrar": handle_menu_registrar,
+    "menu:refugios": handle_refugios,
+    "menu:emergencia": handle_emergencia,
     "ayuda": handle_ayuda,
+    "emergencia": handle_emergencia,
+    "refugios": handle_refugios,
     "registrar_cmd": handle_registrar_cmd,
     "button:menu": handle_menu,
     "button:menu:registrar": handle_menu_registrar,
