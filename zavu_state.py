@@ -1,12 +1,16 @@
 import logging
 from typing import Optional
 
+import numpy as np
+
 from models.persona import Persona, TipoReporte
 from services.database import Database
+from services.face_matching import FaceMatcher
 
 logger = logging.getLogger(__name__)
 
 db = Database()
+face_matcher = FaceMatcher()
 
 NOMBRE = "reportar:step:nombre"
 CEDULA = "reportar:step:cedula"
@@ -83,6 +87,12 @@ class ReportStateMachine:
         return cls._build_summary(state)
 
     @classmethod
+    def set_embedding(cls, chat_id: str, embedding: np.ndarray) -> None:
+        state = cls._states.get(chat_id)
+        if state:
+            state["embedding"] = embedding
+
+    @classmethod
     def _step_nombre(cls, state: dict, text: str) -> Optional[str]:
         if len(text) < 2:
             return "El nombre debe tener al menos 2 caracteres. Proba de nuevo:"
@@ -145,6 +155,14 @@ class ReportStateMachine:
             logger.error(f"Error saving report: {e}")
             cls.cancel(chat_id)
             return "Error al guardar el reporte. Proba de nuevo con /start."
+
+        embedding = state.get("embedding")
+        if embedding is not None:
+            try:
+                face_matcher.store_embedding(persona_id, embedding)
+                logger.info(f"Embedding saved for persona_id={persona_id}")
+            except Exception as e:
+                logger.error(f"Error saving embedding: {e}")
 
         tipo_text = "desaparecido/a" if persona.tipo == TipoReporte.DESAPARECIDO else "encontrado/a"
         cls.cancel(chat_id)

@@ -229,6 +229,23 @@ async def handle_reportar_photo(event: dict) -> None:
         await send_text_async(chat_id, "No se pudo obtener la imagen. Proba de nuevo o escribi /skip.")
         return
 
+    try:
+        timeout = aiohttp.ClientTimeout(total=30)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(media_url) as resp:
+                if resp.status != 200:
+                    await send_text_async(chat_id, "No se pudo descargar la imagen. Proba de nuevo o escribi /skip.")
+                    return
+                image_bytes = await resp.read()
+    except Exception as e:
+        logger.error(f"Error downloading image from {media_url}: {e}")
+        await send_text_async(chat_id, "Error al descargar la imagen. Proba de nuevo o escribi /skip.")
+        return
+
+    probe = face_matcher.extract_embedding(image_bytes)
+    if probe is not None:
+        ReportStateMachine.set_embedding(chat_id, probe)
+
     response = ReportStateMachine.handle_photo(chat_id, media_url)
 
     if response is None:
@@ -238,7 +255,10 @@ async def handle_reportar_photo(event: dict) -> None:
 
 
 async def send_text_async(chat_id: str, text: str) -> None:
-    await asyncio.to_thread(send_text, chat_id, text)
+    try:
+        await asyncio.to_thread(send_text, chat_id, text)
+    except Exception as e:
+        logger.error(f"Failed to send message to {chat_id}: {e}")
 
 
 async def send_buttons_async(chat_id: str, text: str, buttons: list) -> None:
