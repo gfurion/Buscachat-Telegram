@@ -4,7 +4,7 @@ Bot de Telegram para reunificación familiar tras el terremoto en Venezuela (Mw 
 
 Parte del hackathon **Build 4 Venezuela**.
 
-[![Tests](https://img.shields.io/badge/tests-30%2F30%20passing-brightgreen)](https://github.com/gfurion/Buscachat-Telegram)
+[![Tests](https://img.shields.io/badge/tests-38%2F38%20passing-brightgreen)](https://github.com/gfurion/Buscachat-Telegram)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://python.org)
 [![Deploy](https://img.shields.io/badge/deploy-Railway-8B5CF6)](https://buscachat-telegram-production.up.railway.app/health)
 [![Zavu](https://img.shields.io/badge/platform-Zavu-6366F1)](https://zavu.dev)
@@ -16,12 +16,14 @@ Parte del hackathon **Build 4 Venezuela**.
 
 | Comando / Acción | Descripción |
 |---|---|
-| `/start` | Menú principal textual (3 opciones numéricas) |
-| `1` o `/buscar [nombre]` | Buscar personas por nombre o cédula (API externa: 1397 registros) |
-| `2` o `/registrar desaparecido\|encontrado` | Flujo guiado paso a paso (state machine) |
-| `3` o `/ayuda` | Instrucciones de uso |
+| `/start` | Menú principal con 5 opciones |
+| `1` o `/buscar [nombre]` | Buscar personas por nombre o cédula (API externa: 35K registros) |
+| `2` o `/registrar desaparecido\|encontrado` | Flujo guiado paso a paso (state machine 5 pasos) |
+| `3` o `/refugios [ciudad]` | Centros de ayuda y refugios por ciudad (AcopioVE) |
+| `4` o `/emergencia` | Teléfonos de emergencia (AcopioVE) |
+| `5` o `/ayuda` | Instrucciones de uso |
 | **Enviar foto** | Búsqueda por reconocimiento facial (InsightFace/ArcFace + DB embeddings) |
-| HMAC-SHA256 | Webhook signature verification activa |
+| **HMAC** | Webhook signature verification (bypass activo — ver docs) |
 
 ## 🧱 Stack
 
@@ -33,7 +35,7 @@ Parte del hackathon **Build 4 Venezuela**.
 - **SQLite** — base de datos local (MVP)
 - **InsightFace / ArcFace** — reconocimiento facial (facerec.py de Venezuela Juntos)
 - **Railway** — hosting (webhook FastAPI)
-- **pytest + pytest-asyncio** — 30 tests
+- **pytest + pytest-asyncio** — 38 tests
 
 ## 📁 Estructura del proyecto
 
@@ -54,7 +56,8 @@ buscachat-telegram/
 │   └── errores.py             # Error handler global
 ├── services/
 │   ├── database.py            # SQLite: personas, reportes, embeddings
-│   ├── found_people_api.py    # Cliente HTTP → found-people-ve-bot
+│   ├── found_people_api.py    # Cliente HTTP → found-people-ve-bot (35K registros)
+│   ├── acopiove_api.py        # Cliente HTTP → AcopioVE (refugios, telefonos, personas)
 │   ├── face_matching.py       # Wrapper facerec.py (ArcFace)
 │   └── normalizer.py          # Normalización de texto
 ├── models/
@@ -63,9 +66,10 @@ buscachat-telegram/
 │   └── teclados.py            # Menús (legacy python-telegram-bot)
 ├── lib/
 │   └── facerec.py             # ArcFace standalone (Venezuela Juntos)
-└── tests/                     # 30 tests
+└── tests/                     # 38 tests
     ├── test_database.py
     ├── test_found_people_api.py
+    ├── test_acopiove.py       # 8 tests del cliente AcopioVE
     ├── test_face_matching.py
     ├── test_start.py
     ├── test_buscar.py
@@ -101,10 +105,14 @@ python main.py
 
 ## 🌐 APIs integradas
 
-| API | Función | Estado |
-|---|---|---|
-| [found-people-ve-bot](https://github.com/edwinvrgs/found-people-ve-bot) | Búsqueda por nombre/cédula | ✅ Producción |
-| [Venezuela Juntos](https://github.com/OnBeIt/Venezuela_Juntos_v2) | Reconocimiento facial ArcFace | ✅ Funcionando |
+| API | Función | Registros | Estado |
+|---|---|---|---|
+| [found-people-ve-bot](https://github.com/edwinvrgs/found-people-ve-bot) | Búsqueda por nombre/cédula | 35K | ✅ Producción |
+| [AcopioVE](https://acopiove.org/docs/api) | Refugios, teléfonos, personas (PII-safe) | 37K+ personas, 575 puntos | ✅ Producción |
+| [Venezuela Juntos](https://github.com/OnBeIt/Venezuela_Juntos_v2) | Reconocimiento facial ArcFace | — | ✅ Funcionando |
+| [venezuelatebusca.com](https://venezuelatebusca.com) | Registro de desaparecidos | 37K | 🔒 API privada |
+| [SOS Venezuela](https://sosvenezuela2026.com) | Personas desaparecidas/localizadas | — | 🔜 Pendiente |
+| [Localizados Venezuela](https://localizadosvenezuela.com) | Personas en centros de salud | — | 🔜 Pendiente |
 
 ## 🚂 Deploy en Railway
 
@@ -134,10 +142,13 @@ python main.py
 | BUS-25 | Flujo reportar encontrado | ✅ |
 | BUS-26 | DB con embeddings | ✅ |
 | BUS-27 | Deploy Railway | ✅ Producción |
-| BUS-28 | Tests | ✅ 30/30 |
-| BUS-29 | Integración Zavu (webhook, menú, handlers) | ✅ |
-| — | HMAC signature verification | ✅ |
-| — | State machine reportar (Zavu) | ✅ |
+| BUS-28 | Tests | ✅ 38/38 |
+| BUS-29 | Integración Zavu (webhook, menú, handlers, state machine) | ✅ |
+| — | AcopioVE (refugios, emergencia, client personas) | ✅ |
+| — | Embeddings al registrar persona | ✅ |
+| — | HMAC signature verification | ⚠️ Bypass (secret del canal solo en dashboard) |
+| 🔜 | Búsqueda local (SQLite + API externa combinadas) | Pendiente |
+| 🔜 | Buscar en DB local por cédula | Pendiente |
 
 ## 🔄 Flujo Zavu
 
@@ -145,9 +156,19 @@ python main.py
 Usuario Telegram → Telegram API → Zavu → Railway (/webhook) → FastAPI → router → handler → Zavu API → Telegram
 ```
 
-- Webhook recibe `X-Zavu-Signature: t=<ts>,v1=<hmac>` y verifica HMAC-SHA256
+- Webhook recibe `X-Zavu-Signature: t=<ts>,v1=<hmac>` — HMAC en bypass (secret del canal Telegram inaccesible vía SDK)
 - Router clasifica: comandos, menú numérico, texto libre, imágenes
 - State machine maneja flujo reportar con 5 pasos (en memoria, por chat_id)
+- Embeddings faciales se extraen y guardan al registrar persona con foto
+
+### Menú principal
+```
+🔍 1. Buscar persona — por nombre o cédula
+📝 2. Registrar persona — desaparecida o encontrada
+🏠 3. Refugios cercanos — centros de ayuda
+📞 4. Teléfonos de emergencia
+🆘 5. Ayuda — cómo funciona el bot
+```
 
 ---
 
