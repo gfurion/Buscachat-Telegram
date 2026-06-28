@@ -4,13 +4,14 @@ import logging
 from cachetools import TTLCache
 from zavu_client import send_text
 from zavu_router import get_chat_id
+from services.database import get_db
 from services.face_matching import FaceMatcher
 from services.acopiove_api import AcopioVEAPI
 from services.people_search import PeopleSearchAggregator
 from zavu_state import ReportStateMachine
 
 logger = logging.getLogger(__name__)
-people_search = PeopleSearchAggregator()
+people_search = PeopleSearchAggregator(db=get_db())
 acopiove = AcopioVEAPI()
 
 _refugios_waiting: TTLCache[str, bool] = TTLCache(maxsize=10000, ttl=600)
