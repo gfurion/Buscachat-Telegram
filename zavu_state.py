@@ -27,7 +27,10 @@ class ReportStateMachine:
         state = cls._states.get(chat_id)
         if not state:
             return None
-        return state["step"]
+        step = state["step"]
+        if step == FOTO:
+            return "reportar:step:foto"
+        return "reportar:step:text"
 
     @classmethod
     def start(cls, chat_id: str, tipo: str) -> str:

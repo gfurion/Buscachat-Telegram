@@ -260,9 +260,7 @@ HANDLER_MAP = {
     "buscar": handle_buscar,
     "free_text": handle_free_text,
     "photo": handle_photo,
-    "reportar:step:nombre": handle_reportar_text,
-    "reportar:step:cedula": handle_reportar_text,
-    "reportar:step:ubicacion": handle_reportar_text,
+    # State machine handlers
+    "reportar:step:text": handle_reportar_text,
     "reportar:step:foto": handle_reportar_photo,
-    "reportar:step:confirmar": handle_reportar_text,
 }
