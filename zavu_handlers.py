@@ -9,11 +9,13 @@ from config import Config
 from services.found_people_api import FoundPeopleAPI
 from services.face_matching import FaceMatcher
 from services.acopiove_api import AcopioVEAPI
+from services.reportavnzla_api import ReportaVNZLAAPI
 from zavu_state import ReportStateMachine
 
 logger = logging.getLogger(__name__)
 api = FoundPeopleAPI()
 acopiove = AcopioVEAPI()
+reportavnzla = ReportaVNZLAAPI()
 face_matcher = FaceMatcher()
 
 _refugios_waiting: dict[str, bool] = {}
@@ -197,9 +199,30 @@ async def handle_photo(event: dict) -> None:
 async def _realizar_busqueda(chat_id: str, query: str) -> None:
     await send_text_async(chat_id, "Buscando...")
 
-    resultados = await api.buscar(query)
+    resultados_api = await api.buscar(query)
+    resultados_rvnzla = await reportavnzla.buscar_personas(query=query)
 
-    if not resultados:
+    seen = set()
+    respuesta = f"*Resultados para {query}*\n\n"
+    count = 0
+
+    for persona in resultados_rvnzla[:5]:
+        nombre = (persona.get("nombre", "") + " " + persona.get("apellido", "")).strip()
+        if nombre and nombre.lower() not in seen:
+            seen.add(nombre.lower())
+            count += 1
+            respuesta += f"{count}. {reportavnzla.formatear_persona(persona)}\n\n"
+
+    for persona in resultados_api:
+        if count >= 5:
+            break
+        nombre = persona.get("fullName", "")
+        if nombre and nombre.lower() not in seen:
+            seen.add(nombre.lower())
+            count += 1
+            respuesta += f"{count}. {api.formatear_resultado(persona)}\n\n"
+
+    if count == 0:
         await send_text_async(
             chat_id,
             f"No encontre resultados para *{query}*.\n\n"
@@ -207,12 +230,12 @@ async def _realizar_busqueda(chat_id: str, query: str) -> None:
         )
         return
 
-    respuesta = f"*Resultados para {query}*\n\n"
-    for i, persona in enumerate(resultados[:5], 1):
-        respuesta += f"{i}. {api.formatear_resultado(persona)}\n\n"
-
-    if len(resultados) > 5:
-        respuesta += f"... y {len(resultados) - 5} resultados mas\n"
+    total_rvnzla = len(resultados_rvnzla)
+    total_api = len(resultados_api)
+    if total_rvnzla > 5 or total_api > 0:
+        extras = sum(1 for _ in [*resultados_rvnzla[5:], *resultados_api] if _.get("fullName") or (_.get("nombre") and _.get("apellido")))
+        if extras > 0:
+            respuesta += f"... y {extras} resultados mas\n\n"
 
     respuesta += RESULTADO_TEXT
     await send_text_async(chat_id, respuesta)
