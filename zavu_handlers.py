@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from zavu_client import send_text, send_buttons
+from zavu_client import send_text
 from zavu_router import get_chat_id
 from config import Config
 from services.found_people_api import FoundPeopleAPI
@@ -282,17 +282,6 @@ async def handle_refugios(event: dict) -> None:
     )
 
 
-async def handle_refugios_ciudad(event: dict) -> None:
-    chat_id = get_chat_id(event)
-    text = event["data"].get("text", "").strip()
-
-    if len(text) < 2:
-        await send_text_async(chat_id, "Escribi el nombre de una ciudad (minimo 2 caracteres).")
-        return
-
-    await _buscar_refugios(chat_id, text)
-
-
 async def _buscar_refugios(chat_id: str, ciudad: str) -> None:
     await send_text_async(chat_id, f"Buscando refugios en {ciudad}...")
 
@@ -322,10 +311,6 @@ async def send_text_async(chat_id: str, text: str) -> None:
         await asyncio.to_thread(send_text, chat_id, text)
     except Exception as e:
         logger.error(f"Failed to send message to {chat_id}: {e}")
-
-
-async def send_buttons_async(chat_id: str, text: str, buttons: list) -> None:
-    await asyncio.to_thread(send_buttons, chat_id, text, buttons)
 
 
 HANDLER_MAP = {
