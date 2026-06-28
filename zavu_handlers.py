@@ -1,8 +1,6 @@
 import asyncio
 import logging
 
-from cachetools import TTLCache
-
 from zavu_client import send_text
 from zavu_router import get_chat_id
 from services.face_matching import FaceMatcher
@@ -15,6 +13,7 @@ people_search = PeopleSearchAggregator()
 acopiove = AcopioVEAPI()
 
 _refugios_waiting: dict[str, bool] = {}
+_registrar_waiting: dict[str, bool] = {}
 _search_results_state: dict[str, dict] = {}
 SEARCH_PAGE_SIZE = 5
 
@@ -114,6 +113,7 @@ async def handle_menu(event: dict) -> None:
 async def handle_menu_registrar(event: dict) -> None:
     chat_id = get_chat_id(event)
     clear_search_state(chat_id)
+    _registrar_waiting[chat_id] = True
     await send_text_async(chat_id, REGISTRAR_TEXT)
 
 
@@ -125,6 +125,7 @@ async def handle_ayuda(event: dict) -> None:
 
 async def handle_info(event: dict) -> None:
     chat_id = get_chat_id(event)
+    clear_search_state(chat_id)
     await send_text_async(chat_id, INFO_TEXT)
 
 
@@ -199,27 +200,7 @@ async def _realizar_busqueda(chat_id: str, query: str) -> None:
 
     resultados = await people_search.buscar(query)
 
-    seen = set()
-    respuesta = f"*Resultados para {query}*\n\n"
-    count = 0
-
-    for persona in resultados_rvnzla[:5]:
-        nombre = (persona.get("nombre", "") + " " + persona.get("apellido", "")).strip()
-        if nombre and nombre.lower() not in seen:
-            seen.add(nombre.lower())
-            count += 1
-            respuesta += f"{count}. {reportavnzla.formatear_persona(persona)}\n\n"
-
-    for persona in resultados_api:
-        if count >= 5:
-            break
-        nombre = persona.get("fullName", "")
-        if nombre and nombre.lower() not in seen:
-            seen.add(nombre.lower())
-            count += 1
-            respuesta += f"{count}. {api.formatear_resultado(persona)}\n\n"
-
-    if count == 0:
+    if not resultados:
         await send_text_async(
             chat_id,
             f"No encontre resultados para *{query}*.\n\n"

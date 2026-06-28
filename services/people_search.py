@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 from services.acopiove_api import AcopioVEAPI
 from services.found_people_api import FoundPeopleAPI
 from services.normalizer import normalizar_texto
+from services.reportavnzla_api import ReportaVNZLAAPI
 
 logger = logging.getLogger(__name__)
 
@@ -28,15 +29,18 @@ class PeopleSearchAggregator:
         self,
         found_people: Optional[FoundPeopleAPI] = None,
         acopiove: Optional[AcopioVEAPI] = None,
+        reportavnzla: Optional[ReportaVNZLAAPI] = None,
     ):
         self.found_people = found_people or FoundPeopleAPI()
         self.acopiove = acopiove or AcopioVEAPI()
+        self.reportavnzla = reportavnzla or ReportaVNZLAAPI()
 
     async def buscar(self, query: str) -> List[PeopleSearchResult]:
         if not query or len(query.strip()) < 2:
             return []
 
         responses = await asyncio.gather(
+            self._buscar_reportavnzla(query),
             self._buscar_found_people(query),
             self._buscar_acopiove(query),
             return_exceptions=True,
@@ -50,6 +54,10 @@ class PeopleSearchAggregator:
             results.extend(response)
 
         return self._deduplicate(results)
+
+    async def _buscar_reportavnzla(self, query: str) -> List[PeopleSearchResult]:
+        rows = await self.reportavnzla.buscar_personas(query=query)
+        return [self._from_reportavnzla(row) for row in rows]
 
     async def _buscar_found_people(self, query: str) -> List[PeopleSearchResult]:
         rows = await self.found_people.buscar(query)
@@ -68,6 +76,26 @@ class PeopleSearchAggregator:
             info=self._first(row, "relevantInfo", "info", "description"),
             fuente="found-people-ve-bot",
             source_url=self._first(row, "sourceUrl", "url"),
+            raw=row,
+        )
+
+    def _from_reportavnzla(self, row: Dict[str, Any]) -> PeopleSearchResult:
+        nombre = self._join_name_parts(
+            self._first(row, "nombre"),
+            self._first(row, "apellido"),
+        ) or self._first(row, "fullName", "name", default="Sin nombre")
+        info = self._join_non_empty(
+            self._format_age(row.get("edad")),
+            self._first(row, "descripcion", "observaciones", "info"),
+        )
+        return PeopleSearchResult(
+            nombre=nombre,
+            cedula=self._first(row, "cedula", "documentId", "documento"),
+            estado=self._humanize_status(self._first(row, "estado", "status", "condicion")),
+            ubicacion=self._first(row, "ultimaUbicacion", "ubicacion", "ubicacion_general", "lugarNombre"),
+            info=info,
+            fuente="ReportaVNZLA",
+            source_url=self._first(row, "sourceUrl", "url", "fotoUrl"),
             raw=row,
         )
 
@@ -151,3 +179,11 @@ class PeopleSearchAggregator:
 
     def _join_non_empty(self, *values: str) -> str:
         return " · ".join(value for value in values if value)
+
+    def _join_name_parts(self, *values: str) -> str:
+        return " ".join(value for value in values if value)
+
+    def _format_age(self, age: Any) -> str:
+        if age is None or age == "":
+            return ""
+        return f"Edad: {age}"

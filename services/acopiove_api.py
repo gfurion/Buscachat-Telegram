@@ -12,6 +12,30 @@ class AcopioVEAPI:
     def __init__(self):
         self.timeout = aiohttp.ClientTimeout(total=10)
 
+    async def buscar_personas(self, query: str) -> List[Dict]:
+        if not query or len(query) < 2:
+            return []
+
+        try:
+            async with aiohttp.ClientSession(timeout=self.timeout) as session:
+                params = {"q": query}
+                async with session.get(f"{BASE_URL}/personas", params=params) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        return data.get("data", [])
+                    elif resp.status == 429:
+                        logger.warning("Rate limit from AcopioVE /personas")
+                        return []
+                    else:
+                        logger.warning(f"AcopioVE /personas returned status {resp.status}")
+                        return []
+        except aiohttp.ClientError as e:
+            logger.error(f"Connection error calling AcopioVE /personas: {e}")
+            return []
+        except Exception as e:
+            logger.error(f"Unexpected error calling AcopioVE /personas: {e}")
+            return []
+
     async def buscar_puntos(
         self,
         tipo: str = "refugio",

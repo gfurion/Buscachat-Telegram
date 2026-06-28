@@ -27,6 +27,21 @@ def make_event(text="", message_type="text", button_id=None):
     return event
 
 
+class FakePeopleSearch:
+    async def buscar(self, query):
+        from services.people_search import PeopleSearchResult
+
+        return [
+            PeopleSearchResult(
+                nombre="Test Person",
+                fuente="ReportaVNZLA",
+            )
+        ]
+
+    def formatear_resultado(self, result):
+        return f"*{result.nombre}*\nFuente: {result.fuente}"
+
+
 class TestZavuHandlers:
     def test_handle_start_cancels_state(self, monkeypatch):
         monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: None)
@@ -86,18 +101,7 @@ class TestZavuHandlers:
     def test_handle_free_text_search(self, monkeypatch):
         sent = []
         monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: sent.append(text))
-
-        async def mock_buscar(q, *args, **kwargs):
-            return [{"fullName": "Test Person"}]
-
-        async def mock_buscar_personas(query=None, **kwargs):
-            return []
-
-        monkeypatch.setattr("zavu_handlers.api", MagicMock())
-        monkeypatch.setattr("zavu_handlers.reportavnzla", MagicMock())
-        from zavu_handlers import api, reportavnzla
-        api.buscar = mock_buscar
-        reportavnzla.buscar_personas = mock_buscar_personas
+        monkeypatch.setattr("zavu_handlers.people_search", FakePeopleSearch())
 
         import asyncio
         from zavu_handlers import handle_free_text
@@ -108,18 +112,7 @@ class TestZavuHandlers:
     def test_handle_buscar_with_query(self, monkeypatch):
         sent = []
         monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: sent.append(text))
-
-        async def mock_buscar(q, *args, **kwargs):
-            return [{"fullName": "Test Person"}]
-
-        async def mock_buscar_personas(query=None, **kwargs):
-            return []
-
-        monkeypatch.setattr("zavu_handlers.api", MagicMock())
-        monkeypatch.setattr("zavu_handlers.reportavnzla", MagicMock())
-        from zavu_handlers import api, reportavnzla
-        api.buscar = mock_buscar
-        reportavnzla.buscar_personas = mock_buscar_personas
+        monkeypatch.setattr("zavu_handlers.people_search", FakePeopleSearch())
 
         import asyncio
         from zavu_handlers import handle_buscar

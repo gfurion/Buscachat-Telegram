@@ -4,7 +4,7 @@ Bot de Telegram para reunificación familiar tras el terremoto en Venezuela (Mw 
 
 Parte del hackathon **Build 4 Venezuela**.
 
-[![Tests](https://img.shields.io/badge/tests-86%2F86%20passing-brightgreen)](https://github.com/gfurion/Buscachat-Telegram)
+[![Tests](https://img.shields.io/badge/tests-101%2F101%20passing-brightgreen)](https://github.com/gfurion/Buscachat-Telegram)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://python.org)
 [![Deploy](https://img.shields.io/badge/deploy-Railway-8B5CF6)](https://buscachat-telegram-production.up.railway.app/health)
 [![Zavu](https://img.shields.io/badge/platform-Zavu-6366F1)](https://zavu.dev)
@@ -25,7 +25,7 @@ Parte del hackathon **Build 4 Venezuela**.
 | `3` o `/refugios [ciudad]` | Buscar refugios y centros de ayuda |
 | `4` o `/emergencia` | Consultar teléfonos de emergencia |
 | `5` o `/ayuda` | Instrucciones de uso |
-| **Enviar foto** | Búsqueda por reconocimiento facial (InsightFace/ArcFace + DB embeddings) |
+| **Enviar foto en registro** | Guarda la URL de la foto como parte del reporte |
 | **HMAC** | Webhook signature verification (bypass activo — Telegram channel secret solo en dashboard Zavu) |
 
 ## 🧱 Stack
@@ -38,7 +38,7 @@ Parte del hackathon **Build 4 Venezuela**.
 - **SQLite** — base de datos local (MVP)
 - **InsightFace / ArcFace** — reconocimiento facial (facerec.py de Venezuela Juntos)
 - **Railway** — hosting (webhook FastAPI)
-- **pytest + pytest-asyncio** — 86 tests
+- **pytest + pytest-asyncio** — 101 tests
 
 ## 📁 Estructura del proyecto
 
@@ -64,20 +64,13 @@ buscachat-telegram/
 │   └── persona.py             # Persona, TipoReporte
 ├── lib/
 │   └── facerec.py             # ArcFace standalone (Venezuela Juntos)
-└── tests/                     # 49 tests
-    ├── test_database.py
-    ├── test_found_people_api.py
-    ├── test_people_search.py
-    ├── test_face_matching.py
-    ├── test_start.py
-    ├── test_buscar.py
-    ├── test_reportar.py
-    ├── test_zavu.py           # 13 tests del router Zavu
-    └── test_zavu_search_handler.py
-    ├── test_zavu.py           # 11 tests del router Zavu
+└── tests/                     # 101 tests
+    ├── test_zavu.py           # 14 tests del router Zavu
     ├── test_zavu_state.py     # 25 tests del state machine
     ├── test_zavu_handlers.py  # 14 tests de handlers Zavu
-    ├── test_zavu_webhook.py   # 10 tests de webhook (HMAC, routing)
+    ├── test_zavu_webhook.py   # 12 tests de webhook (HMAC, routing)
+    ├── test_zavu_search_handler.py
+    ├── test_people_search.py
     ├── test_database.py       # 4 tests DB
     ├── test_found_people_api.py
     ├── test_acopiove.py       # 4 tests AcopioVE
@@ -113,20 +106,18 @@ python main.py
 
 ## 🌐 APIs integradas
 
-| API | Función | Estado |
-|---|---|---|
-| [found-people-ve-bot](https://github.com/edwinvrgs/found-people-ve-bot) | Búsqueda por nombre/cédula | ✅ Producción |
-| [AcopioVE](https://acopiove.org) | Personas, refugios y teléfonos de emergencia | ✅ Producción |
-| [Venezuela Juntos](https://github.com/OnBeIt/Venezuela_Juntos_v2) | Reconocimiento facial ArcFace | ✅ Funcionando |
-| [ReportaVNZLA](https://reportavnzla.com/desarrolladores) | Búsqueda estructurada (nombre, apellido, cédula, edad, ubicación) | 15K+ | ✅ Producción |
-| [venezuelatebusca.com](https://venezuelatebusca.com) | Registro de desaparecidos | 37K | 🔒 API privada |
-| [SOS Venezuela](https://sosvenezuela2026.com) | Personas desaparecidas/localizadas | — | 🔜 Vía AcopioVE
+| API | Función | Datos | Estado |
+|---|---|---|---|
+| [ReportaVNZLA](https://reportavnzla.com/desarrolladores) | Búsqueda estructurada por nombre/cédula | 15K+ registros | ✅ Producción |
+| [found-people-ve-bot](https://github.com/edwinvrgs/found-people-ve-bot) | Búsqueda por nombre/cédula | 35K+ registros agregados | ✅ Producción |
+| [AcopioVE](https://acopiove.org) | Personas, refugios y teléfonos de emergencia | Fuentes agregadas + ayuda | ✅ Producción |
+| [Venezuela Juntos](https://github.com/OnBeIt/Venezuela_Juntos_v2) | Reconocimiento facial ArcFace | Código base local | ⚠️ Desactivado en flujo Zavu actual |
 
 ### Búsqueda por texto
 
 La búsqueda por nombre/cédula usa `PeopleSearchAggregator`:
 
-1. Consulta en paralelo `found-people-ve-bot` y AcopioVE con `asyncio.gather(..., return_exceptions=True)`.
+1. Consulta en paralelo ReportaVNZLA, `found-people-ve-bot` y AcopioVE con `asyncio.gather(..., return_exceptions=True)`.
 2. Normaliza las respuestas a `PeopleSearchResult`.
 3. Deduplica por cédula cuando existe; si no, por nombre + ubicación.
 4. Muestra resultados paginados de 5 en 5.
@@ -160,12 +151,12 @@ Después de una búsqueda, el usuario puede escribir:
 |---|---|---|
 | BUS-21 | Telegram Bot core | ✅ |
 | BUS-22 | Flujo búsqueda por texto | ✅ |
-| BUS-23 | Flujo búsqueda por foto | ✅ |
+| BUS-23 | Flujo búsqueda por foto | ⚠️ Desactivado temporalmente |
 | BUS-24 | Flujo reportar desaparecido | ✅ |
 | BUS-25 | Flujo reportar encontrado | ✅ |
 | BUS-26 | DB con embeddings | ✅ |
 | BUS-27 | Deploy Railway | ✅ Producción |
-| BUS-28 | Tests | ✅ 49/49 |
+| BUS-28 | Tests | ✅ 101/101 |
 | BUS-29 | Integración Zavu (webhook, menú, handlers) | ✅ |
 | — | Búsqueda multi-fuente con normalización/deduplicación | ✅ |
 | — | Paginación de resultados por chat_id | ✅ |
@@ -185,7 +176,7 @@ Usuario Telegram → Telegram API → Zavu → Railway (/webhook) → FastAPI �
 - Router clasifica: comandos, menú numérico (1-5), texto libre, imágenes
 - State machine maneja flujo reportar con 5 pasos (en memoria, TTL implícito vía /start o /cancel)
 - Estado temporal de búsqueda guarda resultados pendientes por `chat_id` para paginar con opciones `1`, `2` y `3`
-- Búsqueda combinada: ReportaVNZLA (datos estructurados) + found-people-ve-bot (fallback)
+- Búsqueda combinada: ReportaVNZLA + found-people-ve-bot + AcopioVE vía `PeopleSearchAggregator`
 - Fotos se guardan como URL en SQLite — sin procesamiento facial
 
 ### Menú principal
