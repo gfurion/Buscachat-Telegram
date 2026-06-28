@@ -4,7 +4,7 @@ Bot de Telegram para reunificación familiar tras el terremoto en Venezuela (Mw 
 
 Parte del hackathon **Build 4 Venezuela**.
 
-[![Tests](https://img.shields.io/badge/tests-101%2F101%20passing-brightgreen)](https://github.com/gfurion/Buscachat-Telegram)
+[![Tests](https://img.shields.io/badge/tests-103%2F103%20passing-brightgreen)](https://github.com/gfurion/Buscachat-Telegram)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://python.org)
 [![Deploy](https://img.shields.io/badge/deploy-Railway-8B5CF6)](https://buscachat-telegram-production.up.railway.app/health)
 [![Zavu](https://img.shields.io/badge/platform-Zavu-6366F1)](https://zavu.dev)
@@ -38,7 +38,7 @@ Parte del hackathon **Build 4 Venezuela**.
 - **SQLite** — base de datos local (MVP)
 - **InsightFace / ArcFace** — reconocimiento facial (facerec.py de Venezuela Juntos)
 - **Railway** — hosting (webhook FastAPI)
-- **pytest + pytest-asyncio** — 101 tests
+- **pytest + pytest-asyncio** — 103 tests
 
 ## 📁 Estructura del proyecto
 
@@ -64,7 +64,7 @@ buscachat-telegram/
 │   └── persona.py             # Persona, TipoReporte
 ├── lib/
 │   └── facerec.py             # ArcFace standalone (Venezuela Juntos)
-└── tests/                     # 101 tests
+└── tests/                     # 103 tests
     ├── test_zavu.py           # 14 tests del router Zavu
     ├── test_zavu_state.py     # 25 tests del state machine
     ├── test_zavu_handlers.py  # 14 tests de handlers Zavu
@@ -156,7 +156,7 @@ Después de una búsqueda, el usuario puede escribir:
 | BUS-25 | Flujo reportar encontrado | ✅ |
 | BUS-26 | DB con embeddings | ✅ |
 | BUS-27 | Deploy Railway | ✅ Producción |
-| BUS-28 | Tests | ✅ 101/101 |
+| BUS-28 | Tests | ✅ 103/103 |
 | BUS-29 | Integración Zavu (webhook, menú, handlers) | ✅ |
 | — | Búsqueda multi-fuente con normalización/deduplicación | ✅ |
 | — | Paginación de resultados por chat_id | ✅ |

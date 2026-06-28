@@ -1,5 +1,6 @@
 import pytest
 
+from models.persona import Persona
 from services.people_search import PeopleSearchAggregator
 
 
@@ -36,6 +37,17 @@ class FakeReportaClient:
         return self.results
 
 
+class FakeLocalDb:
+    def __init__(self, results=None, error=None):
+        self.results = results or []
+        self.error = error
+
+    def buscar_por_texto(self, query):
+        if self.error:
+            raise self.error
+        return self.results
+
+
 @pytest.mark.asyncio
 async def test_buscar_normalizes_and_merges_sources():
     search = PeopleSearchAggregator(
@@ -65,6 +77,7 @@ async def test_buscar_normalizes_and_merges_sources():
                 "fuente": "AcopioVE",
             }
         ]),
+        db=FakeLocalDb([]),
     )
 
     results = await search.buscar("Maria")
@@ -86,6 +99,7 @@ async def test_buscar_continues_when_a_source_fails():
             {"fullName": "Maria Perez", "documentId": "12345678"}
         ]),
         acopiove=FakeAcopioClient(error=RuntimeError("timeout")),
+        db=FakeLocalDb([]),
     )
 
     results = await search.buscar("Maria")
@@ -113,6 +127,7 @@ async def test_buscar_deduplicates_by_cedula():
                 "fuente": "AcopioVE",
             }
         ]),
+        db=FakeLocalDb([]),
     )
 
     results = await search.buscar("Maria")
@@ -161,3 +176,39 @@ def test_from_reportavnzla_normalizes_result():
     assert result.fuente == "ReportaVNZLA"
     assert result.ubicacion == "La Guaira"
     assert "Edad: 35" in result.info
+
+
+@pytest.mark.asyncio
+async def test_buscar_incluye_resultados_locales():
+    search = PeopleSearchAggregator(
+        reportavnzla=FakeReportaClient([]),
+        found_people=FakeClient([]),
+        acopiove=FakeAcopioClient([]),
+        db=FakeLocalDb([
+            Persona(nombre="Ana Torres", cedula="87654321", ubicacion="La Guaira"),
+        ]),
+    )
+
+    results = await search.buscar("Ana")
+
+    assert len(results) == 1
+    assert results[0].nombre == "Ana Torres"
+    assert results[0].cedula == "87654321"
+    assert results[0].fuente == "BuscaChat (local)"
+
+
+@pytest.mark.asyncio
+async def test_buscar_continues_when_db_fails():
+    search = PeopleSearchAggregator(
+        reportavnzla=FakeReportaClient([]),
+        found_people=FakeClient([
+            {"fullName": "Maria Perez", "documentId": "12345678"}
+        ]),
+        acopiove=FakeAcopioClient([]),
+        db=FakeLocalDb(error=RuntimeError("DB error")),
+    )
+
+    results = await search.buscar("Maria")
+
+    assert len(results) == 1
+    assert results[0].nombre == "Maria Perez"

@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from services.acopiove_api import AcopioVEAPI
+from services.database import get_db
 from services.found_people_api import FoundPeopleAPI
 from services.normalizer import normalizar_texto
 from services.reportavnzla_api import ReportaVNZLAAPI
@@ -30,21 +31,26 @@ class PeopleSearchAggregator:
         found_people: Optional[FoundPeopleAPI] = None,
         acopiove: Optional[AcopioVEAPI] = None,
         reportavnzla: Optional[ReportaVNZLAAPI] = None,
+        db: Optional["Database"] = None,
     ):
         self.found_people = found_people or FoundPeopleAPI()
         self.acopiove = acopiove or AcopioVEAPI()
         self.reportavnzla = reportavnzla or ReportaVNZLAAPI()
+        self.db = db
 
     async def buscar(self, query: str) -> List[PeopleSearchResult]:
         if not query or len(query.strip()) < 2:
             return []
 
-        responses = await asyncio.gather(
+        tasks = [
             self._buscar_reportavnzla(query),
             self._buscar_found_people(query),
             self._buscar_acopiove(query),
-            return_exceptions=True,
-        )
+        ]
+        if self.db is not None:
+            tasks.append(self._buscar_local_db(query))
+
+        responses = await asyncio.gather(*tasks, return_exceptions=True)
 
         results: List[PeopleSearchResult] = []
         for response in responses:
@@ -66,6 +72,25 @@ class PeopleSearchAggregator:
     async def _buscar_acopiove(self, query: str) -> List[PeopleSearchResult]:
         rows = await self.acopiove.buscar_personas(query)
         return [self._from_acopiove(row) for row in rows]
+
+    async def _buscar_local_db(self, query: str) -> List[PeopleSearchResult]:
+        try:
+            rows = await asyncio.to_thread(self.db.buscar_por_texto, query)
+            return [self._from_local_db(row) for row in rows]
+        except Exception as e:
+            logger.error(f"Local DB search failed: {e}")
+            return []
+
+    def _from_local_db(self, persona: "Persona") -> PeopleSearchResult:
+        return PeopleSearchResult(
+            nombre=persona.nombre,
+            cedula=persona.cedula,
+            estado="reportado",
+            ubicacion=persona.ubicacion,
+            info=persona.descripcion,
+            fuente="BuscaChat (local)",
+            raw={"id": persona.id, "tipo": persona.tipo.value if persona.tipo else ""},
+        )
 
     def _from_found_people(self, row: Dict[str, Any]) -> PeopleSearchResult:
         return PeopleSearchResult(
