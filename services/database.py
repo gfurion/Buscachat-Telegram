@@ -37,16 +37,6 @@ class Database:
                 )
             """)
             conn.execute("""
-                CREATE TABLE IF NOT EXISTS reportes (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    persona_id INTEGER NOT NULL,
-                    chat_id INTEGER NOT NULL,
-                    texto TEXT DEFAULT '',
-                    created_at TEXT NOT NULL,
-                    FOREIGN KEY (persona_id) REFERENCES personas(id)
-                )
-            """)
-            conn.execute("""
                 CREATE TABLE IF NOT EXISTS embeddings (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     persona_id INTEGER NOT NULL,
