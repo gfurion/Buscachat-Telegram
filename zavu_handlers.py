@@ -1,6 +1,8 @@
 import asyncio
 import logging
 
+from cachetools import TTLCache
+
 from zavu_client import send_text
 from zavu_router import get_chat_id
 from config import Config
@@ -14,8 +16,8 @@ api = FoundPeopleAPI()
 acopiove = AcopioVEAPI()
 reportavnzla = ReportaVNZLAAPI()
 
-_refugios_waiting: dict[str, bool] = {}
-_registrar_waiting: dict[str, bool] = {}
+_refugios_waiting = TTLCache(maxsize=10000, ttl=600)
+_registrar_waiting = TTLCache(maxsize=10000, ttl=600)
 
 MENU_TEXT = (
     "🔍 *BuscaChat — Reunificacion Familiar*\n\n"
@@ -178,10 +180,9 @@ async def _realizar_busqueda(chat_id: str, query: str) -> None:
 
     total_rvnzla = len(resultados_rvnzla)
     total_api = len(resultados_api)
-    if total_rvnzla > 5 or total_api > 0:
-        extras = sum(1 for _ in [*resultados_rvnzla[5:], *resultados_api] if _.get("fullName") or (_.get("nombre") and _.get("apellido")))
-        if extras > 0:
-            respuesta += f"... y {extras} resultados mas\n\n"
+    extras = max(0, total_rvnzla - 5) + max(0, total_api - count)
+    if extras > 0:
+        respuesta += f"... y {extras} resultados mas\n\n"
 
     respuesta += RESULTADO_TEXT
     await send_text_async(chat_id, respuesta)
