@@ -121,7 +121,7 @@ class ReportStateMachine:
 
     @classmethod
     def _step_confirmar(cls, chat_id: str, state: dict, text: str) -> Optional[str]:
-        if text != "Confirmar":
+        if text.lower() != "confirmar":
             return "Escribi *Confirmar* para guardar o *Cancelar* para descartar."
 
         return cls._save_report(chat_id, state)
