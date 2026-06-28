@@ -4,7 +4,7 @@ Bot de Telegram para reunificación familiar tras el terremoto en Venezuela (Mw 
 
 Parte del hackathon **Build 4 Venezuela**.
 
-[![Tests](https://img.shields.io/badge/tests-38%2F38%20passing-brightgreen)](https://github.com/gfurion/Buscachat-Telegram)
+[![Tests](https://img.shields.io/badge/tests-84%2F84%20passing-brightgreen)](https://github.com/gfurion/Buscachat-Telegram)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://python.org)
 [![Deploy](https://img.shields.io/badge/deploy-Railway-8B5CF6)](https://buscachat-telegram-production.up.railway.app/health)
 [![Zavu](https://img.shields.io/badge/platform-Zavu-6366F1)](https://zavu.dev)
@@ -22,8 +22,8 @@ Parte del hackathon **Build 4 Venezuela**.
 | `3` o `/refugios [ciudad]` | Centros de ayuda y refugios por ciudad (AcopioVE) |
 | `4` o `/emergencia` | Teléfonos de emergencia (AcopioVE) |
 | `5` o `/ayuda` | Instrucciones de uso |
-| **Enviar foto** | Guarda la foto en el registro (sin reconocimiento facial) |
-| **HMAC** | Webhook signature verification (bypass activo — ver docs) |
+| **Enviar foto** | Guarda la URL de la foto en el registro (reconocimiento facial no activo) |
+| **HMAC** | Webhook signature verification (bypass activo — Telegram channel secret solo en dashboard Zavu) |
 
 ## 🧱 Stack
 
@@ -35,7 +35,7 @@ Parte del hackathon **Build 4 Venezuela**.
 - **SQLite** — base de datos local (MVP)
 - **InsightFace / ArcFace** — reconocimiento facial (facerec.py de Venezuela Juntos)
 - **Railway** — hosting (webhook FastAPI)
-- **pytest + pytest-asyncio** — 38 tests
+- **pytest + pytest-asyncio** — 84 tests
 
 ## 📁 Estructura del proyecto
 
@@ -49,32 +49,27 @@ buscachat-telegram/
 ├── main.py                    # Entry point original (python-telegram-bot polling)
 ├── config.py                  # Settings con validación (30+ vars de entorno)
 ├── Dockerfile                 # Deploy Railway (CMD uvicorn)
-├── handlers/                  # Handlers originales (python-telegram-bot) — conservados
-│   ├── start.py               # /start, menú, ayuda
-│   ├── buscar.py              # /buscar + foto directa + texto libre
-│   ├── reportar.py            # ConversationHandler 5 pasos (legacy)
-│   └── errores.py             # Error handler global
 ├── services/
-│   ├── database.py            # SQLite: personas, reportes, embeddings
+│   ├── database.py            # SQLite: personas, embeddings
 │   ├── found_people_api.py    # Cliente HTTP → found-people-ve-bot (35K registros)
-│   ├── acopiove_api.py        # Cliente HTTP → AcopioVE (refugios, telefonos, personas)
-│   ├── face_matching.py       # Wrapper facerec.py (ArcFace)
+│   ├── acopiove_api.py        # Cliente HTTP → AcopioVE (refugios, telefonos)
+│   ├── reportavnzla_api.py    # Cliente HTTP → ReportaVNZLA (personas estructuradas)
+│   ├── face_matching.py       # Wrapper facerec.py (no activo en prod)
 │   └── normalizer.py          # Normalización de texto
 ├── models/
-│   └── persona.py             # Persona, Reporte, TipoReporte
-├── keyboards/
-│   └── teclados.py            # Menús (legacy python-telegram-bot)
+│   └── persona.py             # Persona, TipoReporte
 ├── lib/
-│   └── facerec.py             # ArcFace standalone (Venezuela Juntos)
-└── tests/                     # 38 tests
-    ├── test_database.py
+│   └── facerec.py             # ArcFace standalone (Venezuela Juntos, no activo)
+└── tests/                     # 84 tests
+    ├── test_zavu.py           # 11 tests del router Zavu
+    ├── test_zavu_state.py     # 25 tests del state machine
+    ├── test_zavu_handlers.py  # 14 tests de handlers Zavu
+    ├── test_zavu_webhook.py   # 10 tests de webhook (HMAC, routing)
+    ├── test_database.py       # 4 tests DB
     ├── test_found_people_api.py
-    ├── test_acopiove.py       # 8 tests del cliente AcopioVE
-    ├── test_face_matching.py
-    ├── test_start.py
-    ├── test_buscar.py
-    ├── test_reportar.py
-    └── test_zavu.py           # 13 tests del router Zavu
+    ├── test_acopiove.py       # 4 tests AcopioVE
+    ├── test_reportavnzla.py   # 6 tests ReportaVNZLA
+    └── test_face_matching.py  # 3 tests face matching
 ```
 
 ## 🔧 Setup local
@@ -108,11 +103,10 @@ python main.py
 | API | Función | Registros | Estado |
 |---|---|---|---|
 | [found-people-ve-bot](https://github.com/edwinvrgs/found-people-ve-bot) | Búsqueda por nombre/cédula | 35K | ✅ Producción |
-| [AcopioVE](https://acopiove.org/docs/api) | Refugios, teléfonos, personas (PII-safe) | 37K+ personas, 575 puntos | ✅ Producción |
-| [Venezuela Juntos](https://github.com/OnBeIt/Venezuela_Juntos_v2) | Reconocimiento facial ArcFace | — | ✅ Funcionando |
+| [ReportaVNZLA](https://reportavnzla.com/desarrolladores) | Búsqueda estructurada (nombre, apellido, cédula, edad, ubicación) | 15K+ | ✅ Producción |
+| [AcopioVE](https://acopiove.org/docs/api) | Refugios, teléfonos de emergencia | 575 puntos | ✅ Producción |
 | [venezuelatebusca.com](https://venezuelatebusca.com) | Registro de desaparecidos | 37K | 🔒 API privada |
-| [SOS Venezuela](https://sosvenezuela2026.com) | Personas desaparecidas/localizadas | — | 🔜 Pendiente |
-| [Localizados Venezuela](https://localizadosvenezuela.com) | Personas en centros de salud | — | 🔜 Pendiente |
+| [SOS Venezuela](https://sosvenezuela2026.com) | Personas desaparecidas/localizadas | — | 🔜 Vía AcopioVE
 
 ## 🚂 Deploy en Railway
 
@@ -142,14 +136,13 @@ python main.py
 | BUS-25 | Flujo reportar encontrado | ✅ |
 | BUS-26 | DB con embeddings | ✅ |
 | BUS-27 | Deploy Railway | ✅ Producción |
-| BUS-28 | Tests | ✅ 38/38 |
+| BUS-28 | Tests | ✅ 84/84 |
 | BUS-29 | Integración Zavu (webhook, menú, handlers, state machine) | ✅ |
-| — | AcopioVE (refugios, emergencia, client personas) | ✅ |
-| — | ReportaVNZLA (búsqueda estructurada: cédula, edad, ubicación) | ✅ |
-| — | Embeddings al registrar persona | ❌ Desactivado |
-| — | HMAC signature verification | ⚠️ Bypass (secret del canal solo en dashboard) |
+| — | AcopioVE (refugios, emergencia) | ✅ |
+| — | ReportaVNZLA (búsqueda estructurada) | ✅ |
+| — | HMAC signature verification | ⚠️ Bypass |
 | 🔜 | Reconocimiento facial (FR-API ReportaVNZLA) | Pendiente API key |
-| 🔜 | Búsqueda local (SQLite + API externa combinadas) | Pendiente |
+| 🔜 | Búsqueda en DB local | Pendiente |
 
 ## 🔄 Flujo Zavu
 
@@ -157,10 +150,11 @@ python main.py
 Usuario Telegram → Telegram API → Zavu → Railway (/webhook) → FastAPI → router → handler → Zavu API → Telegram
 ```
 
-- Webhook recibe `X-Zavu-Signature: t=<ts>,v1=<hmac>` — HMAC en bypass (secret del canal Telegram inaccesible vía SDK)
-- Router clasifica: comandos, menú numérico, texto libre, imágenes
-- State machine maneja flujo reportar con 5 pasos (en memoria, por chat_id)
-- Embeddings faciales se extraen y guardan al registrar persona con foto
+- Webhook recibe `X-Zavu-Signature: t=<ts>,v1=<hmac>` — HMAC en bypass (secret del canal Telegram solo en dashboard)
+- Router clasifica: comandos, menú numérico (1-5), texto libre, imágenes
+- State machine maneja flujo reportar con 5 pasos (en memoria, TTL implícito vía /start o /cancel)
+- Búsqueda combinada: ReportaVNZLA (datos estructurados) + found-people-ve-bot (fallback)
+- Fotos se guardan como URL en SQLite — sin procesamiento facial
 
 ### Menú principal
 ```
