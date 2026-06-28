@@ -1,6 +1,7 @@
 import asyncio
 import logging
 
+from cachetools import TTLCache
 from zavu_client import send_text
 from zavu_router import get_chat_id
 from services.face_matching import FaceMatcher
@@ -12,8 +13,8 @@ logger = logging.getLogger(__name__)
 people_search = PeopleSearchAggregator()
 acopiove = AcopioVEAPI()
 
-_refugios_waiting: dict[str, bool] = {}
-_registrar_waiting: dict[str, bool] = {}
+_refugios_waiting: TTLCache[str, bool] = TTLCache(maxsize=10000, ttl=600)
+_registrar_waiting: TTLCache[str, bool] = TTLCache(maxsize=10000, ttl=600)
 _search_results_state: dict[str, dict] = {}
 SEARCH_PAGE_SIZE = 5
 
