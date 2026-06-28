@@ -60,8 +60,7 @@ async def webhook(request: Request):
     if not sig_valid:
         logger.warning(
             "Webhook signature verification failed — processing anyway (debug mode). "
-            "Secret on Railway: %s...",
-            Config.ZAVU_WEBHOOK_SECRET[:12] if Config.ZAVU_WEBHOOK_SECRET else "unset"
+            "Telegram channel secret inaccessible via SDK — must be set from Zavu dashboard."
         )
         # FIXME: Zavu Telegram channel signs with its own secret,
         # separate from the sender's webhook secret. The sender's
