@@ -1,13 +1,10 @@
 import asyncio
 import logging
 
-import aiohttp
-
 from zavu_client import send_text, send_buttons
 from zavu_router import get_chat_id
 from config import Config
 from services.found_people_api import FoundPeopleAPI
-from services.face_matching import FaceMatcher
 from services.acopiove_api import AcopioVEAPI
 from services.reportavnzla_api import ReportaVNZLAAPI
 from zavu_state import ReportStateMachine
@@ -16,7 +13,6 @@ logger = logging.getLogger(__name__)
 api = FoundPeopleAPI()
 acopiove = AcopioVEAPI()
 reportavnzla = ReportaVNZLAAPI()
-face_matcher = FaceMatcher()
 
 _refugios_waiting: dict[str, bool] = {}
 _registrar_waiting: dict[str, bool] = {}
@@ -138,62 +134,12 @@ async def handle_free_text(event: dict) -> None:
 
 async def handle_photo(event: dict) -> None:
     chat_id = get_chat_id(event)
-    media_url = event["data"].get("mediaUrl", "")
-
-    if not media_url:
-        await send_text_async(chat_id, "No se pudo obtener la imagen.")
-        return
-
-    await send_text_async(chat_id, "Analizando imagen...")
-
-    try:
-        timeout = aiohttp.ClientTimeout(total=30)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(media_url) as resp:
-                if resp.status != 200:
-                    await send_text_async(chat_id, "No se pudo descargar la imagen.")
-                    return
-                image_bytes = await resp.read()
-    except Exception as e:
-        logger.error(f"Error downloading image from {media_url}: {e}")
-        await send_text_async(chat_id, "Error al descargar la imagen. Proba de nuevo.")
-        return
-
-    probe = face_matcher.extract_embedding(image_bytes)
-    if probe is None:
-        await send_text_async(
-            chat_id,
-            "No se detecto ningun rostro en la foto.\n\n"
-            "Asegurate de enviar una foto clara del rostro de la persona.",
-        )
-        return
-
-    await send_text_async(chat_id, "Buscando coincidencias...")
-
-    matches = face_matcher.buscar_personas(probe)
-
-    if not matches:
-        await send_text_async(
-            chat_id,
-            "No se encontraron coincidencias con esa foto.\n\n"
-            "Escribi *1* para buscar por texto o *2* para volver al menu.",
-        )
-        return
-
-    respuesta = "*Resultados por busqueda facial*\n\n"
-    for i, (persona, score) in enumerate(matches[:5], 1):
-        respuesta += f"{i}. *{persona.nombre}* (similitud: {score:.0%})\n"
-        if persona.cedula:
-            respuesta += f"   Cedula: {persona.cedula}\n"
-        if persona.ubicacion:
-            respuesta += f"   Ubicacion: {persona.ubicacion}\n"
-        respuesta += "\n"
-
-    if len(matches) > 5:
-        respuesta += f"... y {len(matches) - 5} resultados mas\n\n"
-
-    respuesta += "Escribi *1* para buscar por texto o *2* para volver al menu."
-    await send_text_async(chat_id, respuesta)
+    logger.info(f"PHOTO EVENT (free search): data keys={list(event.get('data', {}).keys())}")
+    await send_text_async(
+        chat_id,
+        "La busqueda por foto no esta disponible por ahora.\n\n"
+        "Usa /buscar con nombre o cedula para buscar personas.",
+    )
 
 
 async def _realizar_busqueda(chat_id: str, query: str) -> None:
@@ -278,26 +224,11 @@ async def handle_reportar_photo(event: dict) -> None:
     chat_id = get_chat_id(event)
     media_url = event["data"].get("mediaUrl", "")
 
+    logger.info(f"REPORTAR PHOTO EVENT: data keys={list(event.get('data', {}).keys())}")
+
     if not media_url:
         await send_text_async(chat_id, "No se pudo obtener la imagen. Proba de nuevo o escribi /skip.")
         return
-
-    try:
-        timeout = aiohttp.ClientTimeout(total=30)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(media_url) as resp:
-                if resp.status != 200:
-                    await send_text_async(chat_id, "No se pudo descargar la imagen. Proba de nuevo o escribi /skip.")
-                    return
-                image_bytes = await resp.read()
-    except Exception as e:
-        logger.error(f"Error downloading image from {media_url}: {e}")
-        await send_text_async(chat_id, "Error al descargar la imagen. Proba de nuevo o escribi /skip.")
-        return
-
-    probe = face_matcher.extract_embedding(image_bytes)
-    if probe is not None:
-        ReportStateMachine.set_embedding(chat_id, probe)
 
     response = ReportStateMachine.handle_photo(chat_id, media_url)
 
@@ -415,7 +346,6 @@ HANDLER_MAP = {
     "button:reportar:encontrado": handle_menu,
     "buscar": handle_buscar,
     "free_text": handle_free_text,
-    "photo": handle_photo,
     # State machine handlers
     "reportar:step:text": handle_reportar_text,
     "reportar:step:foto": handle_reportar_photo,

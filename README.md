@@ -22,7 +22,7 @@ Parte del hackathon **Build 4 Venezuela**.
 | `3` o `/refugios [ciudad]` | Centros de ayuda y refugios por ciudad (AcopioVE) |
 | `4` o `/emergencia` | Teléfonos de emergencia (AcopioVE) |
 | `5` o `/ayuda` | Instrucciones de uso |
-| **Enviar foto** | Búsqueda por reconocimiento facial (InsightFace/ArcFace + DB embeddings) |
+| **Enviar foto** | Guarda la foto en el registro (sin reconocimiento facial) |
 | **HMAC** | Webhook signature verification (bypass activo — ver docs) |
 
 ## 🧱 Stack
@@ -145,10 +145,11 @@ python main.py
 | BUS-28 | Tests | ✅ 38/38 |
 | BUS-29 | Integración Zavu (webhook, menú, handlers, state machine) | ✅ |
 | — | AcopioVE (refugios, emergencia, client personas) | ✅ |
-| — | Embeddings al registrar persona | ✅ |
+| — | ReportaVNZLA (búsqueda estructurada: cédula, edad, ubicación) | ✅ |
+| — | Embeddings al registrar persona | ❌ Desactivado |
 | — | HMAC signature verification | ⚠️ Bypass (secret del canal solo en dashboard) |
+| 🔜 | Reconocimiento facial (FR-API ReportaVNZLA) | Pendiente API key |
 | 🔜 | Búsqueda local (SQLite + API externa combinadas) | Pendiente |
-| 🔜 | Buscar en DB local por cédula | Pendiente |
 
 ## 🔄 Flujo Zavu
 
