@@ -38,6 +38,7 @@ class ReportStateMachine:
 
     @classmethod
     def start(cls, chat_id: str, tipo: str) -> str:
+        logger.info(f"Reportar start: tipo={tipo} chat_id={chat_id}")
         cls._states[chat_id] = {
             "step": NOMBRE,
             "tipo": tipo,
@@ -138,7 +139,9 @@ class ReportStateMachine:
 
     @classmethod
     def _save_report(cls, chat_id: str, state: dict) -> Optional[str]:
-        tipo = TipoReporte.DESAPARECIDO if state["tipo"] == "desaparecido" else TipoReporte.ENCONTRADO
+        tipo_str = state.get("tipo", "desaparecido")
+        tipo = TipoReporte.DESAPARECIDO if tipo_str == "desaparecido" else TipoReporte.ENCONTRADO
+        logger.info(f"Save report: tipo_str={tipo_str} tipo={tipo.value} chat_id={chat_id}")
         persona = Persona(
             nombre=state.get("nombre", ""),
             cedula=state.get("cedula", ""),
@@ -176,8 +179,9 @@ class ReportStateMachine:
 
     @classmethod
     def _build_summary(cls, state: dict) -> str:
-        tipo = state["tipo"]
-        tipo_text = "desaparecido/a" if tipo == "desaparecido" else "encontrado/a"
+        tipo_str = state.get("tipo", "desaparecido")
+        tipo_text = "desaparecido/a" if tipo_str == "desaparecido" else "encontrado/a"
+        logger.info(f"Build summary: tipo_str={tipo_str} tipo_text={tipo_text}")
         return (
             f"*Resumen del reporte*\n\n"
             f"Tipo: *{tipo_text}*\n"

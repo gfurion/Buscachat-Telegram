@@ -17,6 +17,7 @@ acopiove = AcopioVEAPI()
 face_matcher = FaceMatcher()
 
 _refugios_waiting: dict[str, bool] = {}
+_registrar_waiting: dict[str, bool] = {}
 
 MENU_TEXT = (
     "🔍 *BuscaChat — Reunificacion Familiar*\n\n"
@@ -71,6 +72,7 @@ async def handle_menu(event: dict) -> None:
 
 async def handle_menu_registrar(event: dict) -> None:
     chat_id = get_chat_id(event)
+    _registrar_waiting[chat_id] = True
     await send_text_async(chat_id, REGISTRAR_TEXT)
 
 
@@ -116,6 +118,18 @@ async def handle_free_text(event: dict) -> None:
     if _refugios_waiting.pop(chat_id, None):
         await _buscar_refugios(chat_id, query)
         return
+
+    if _registrar_waiting.pop(chat_id, None):
+        if query.lower() in ("desaparecido", "encontrado"):
+            tipo = query.lower()
+            prompt = ReportStateMachine.start(chat_id, tipo)
+            await send_text_async(chat_id, prompt)
+            return
+        elif query.lower() in ("desaparecida", "encontrada"):
+            tipo = query.lower().rstrip("a")
+            prompt = ReportStateMachine.start(chat_id, tipo)
+            await send_text_async(chat_id, prompt)
+            return
 
     await _realizar_busqueda(chat_id, query)
 
@@ -207,12 +221,14 @@ async def _realizar_busqueda(chat_id: str, query: str) -> None:
 async def handle_registrar_cmd(event: dict) -> None:
     chat_id = get_chat_id(event)
     text = event["data"].get("text", "").strip()
+    _registrar_waiting.pop(chat_id, None)
 
     if "encontrado" in text:
         tipo = "encontrado"
     else:
         tipo = "desaparecido"
 
+    logger.info(f"Registrar: text={text[:50]} tipo={tipo} chat_id={chat_id}")
     prompt = ReportStateMachine.start(chat_id, tipo)
     await send_text_async(chat_id, prompt)
 
