@@ -1,6 +1,5 @@
 import sqlite3
 import logging
-import struct
 from datetime import datetime, UTC
 from typing import List, Optional, Tuple
 
