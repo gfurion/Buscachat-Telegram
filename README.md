@@ -4,7 +4,7 @@ Bot de Telegram para reunificación familiar tras el terremoto en Venezuela (Mw 
 
 Parte del hackathon **Build 4 Venezuela**.
 
-[![Tests](https://img.shields.io/badge/tests-49%2F49%20passing-brightgreen)](https://github.com/gfurion/Buscachat-Telegram)
+[![Tests](https://img.shields.io/badge/tests-86%2F86%20passing-brightgreen)](https://github.com/gfurion/Buscachat-Telegram)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://python.org)
 [![Deploy](https://img.shields.io/badge/deploy-Railway-8B5CF6)](https://buscachat-telegram-production.up.railway.app/health)
 [![Zavu](https://img.shields.io/badge/platform-Zavu-6366F1)](https://zavu.dev)
@@ -26,7 +26,7 @@ Parte del hackathon **Build 4 Venezuela**.
 | `4` o `/emergencia` | Consultar teléfonos de emergencia |
 | `5` o `/ayuda` | Instrucciones de uso |
 | **Enviar foto** | Búsqueda por reconocimiento facial (InsightFace/ArcFace + DB embeddings) |
-| HMAC-SHA256 | Webhook signature verification activa |
+| **HMAC** | Webhook signature verification (bypass activo — Telegram channel secret solo en dashboard Zavu) |
 
 ## 🧱 Stack
 
@@ -38,7 +38,7 @@ Parte del hackathon **Build 4 Venezuela**.
 - **SQLite** — base de datos local (MVP)
 - **InsightFace / ArcFace** — reconocimiento facial (facerec.py de Venezuela Juntos)
 - **Railway** — hosting (webhook FastAPI)
-- **pytest + pytest-asyncio** — 49 tests
+- **pytest + pytest-asyncio** — 86 tests
 
 ## 📁 Estructura del proyecto
 
@@ -52,22 +52,16 @@ buscachat-telegram/
 ├── main.py                    # Entry point original (python-telegram-bot polling)
 ├── config.py                  # Settings con validación (30+ vars de entorno)
 ├── Dockerfile                 # Deploy Railway (CMD uvicorn)
-├── handlers/                  # Handlers originales (python-telegram-bot) — conservados
-│   ├── start.py               # /start, menú, ayuda
-│   ├── buscar.py              # /buscar + foto directa + texto libre
-│   ├── reportar.py            # ConversationHandler 5 pasos (legacy)
-│   └── errores.py             # Error handler global
 ├── services/
 │   ├── database.py            # SQLite: personas, reportes, embeddings
 │   ├── found_people_api.py    # Cliente HTTP → found-people-ve-bot
 │   ├── acopiove_api.py        # Cliente HTTP → AcopioVE (personas, refugios, teléfonos)
 │   ├── people_search.py       # Agregador: búsqueda paralela, normalización, deduplicación
 │   ├── face_matching.py       # Wrapper facerec.py (ArcFace)
+│   ├── reportavnzla_api.py    # Cliente HTTP → ReportaVNZLA (personas estructuradas)
 │   └── normalizer.py          # Normalización de texto
 ├── models/
-│   └── persona.py             # Persona, Reporte, TipoReporte
-├── keyboards/
-│   └── teclados.py            # Menús (legacy python-telegram-bot)
+│   └── persona.py             # Persona, TipoReporte
 ├── lib/
 │   └── facerec.py             # ArcFace standalone (Venezuela Juntos)
 └── tests/                     # 49 tests
@@ -80,6 +74,15 @@ buscachat-telegram/
     ├── test_reportar.py
     ├── test_zavu.py           # 13 tests del router Zavu
     └── test_zavu_search_handler.py
+    ├── test_zavu.py           # 11 tests del router Zavu
+    ├── test_zavu_state.py     # 25 tests del state machine
+    ├── test_zavu_handlers.py  # 14 tests de handlers Zavu
+    ├── test_zavu_webhook.py   # 10 tests de webhook (HMAC, routing)
+    ├── test_database.py       # 4 tests DB
+    ├── test_found_people_api.py
+    ├── test_acopiove.py       # 4 tests AcopioVE
+    ├── test_reportavnzla.py   # 6 tests ReportaVNZLA
+    └── test_face_matching.py  # 3 tests face matching
 ```
 
 ## 🔧 Setup local
@@ -115,6 +118,9 @@ python main.py
 | [found-people-ve-bot](https://github.com/edwinvrgs/found-people-ve-bot) | Búsqueda por nombre/cédula | ✅ Producción |
 | [AcopioVE](https://acopiove.org) | Personas, refugios y teléfonos de emergencia | ✅ Producción |
 | [Venezuela Juntos](https://github.com/OnBeIt/Venezuela_Juntos_v2) | Reconocimiento facial ArcFace | ✅ Funcionando |
+| [ReportaVNZLA](https://reportavnzla.com/desarrolladores) | Búsqueda estructurada (nombre, apellido, cédula, edad, ubicación) | 15K+ | ✅ Producción |
+| [venezuelatebusca.com](https://venezuelatebusca.com) | Registro de desaparecidos | 37K | 🔒 API privada |
+| [SOS Venezuela](https://sosvenezuela2026.com) | Personas desaparecidas/localizadas | — | 🔜 Vía AcopioVE
 
 ### Búsqueda por texto
 
@@ -163,6 +169,11 @@ Después de una búsqueda, el usuario puede escribir:
 | BUS-29 | Integración Zavu (webhook, menú, handlers) | ✅ |
 | — | Búsqueda multi-fuente con normalización/deduplicación | ✅ |
 | — | Paginación de resultados por chat_id | ✅ |
+| — | AcopioVE (refugios, emergencia) | ✅ |
+| — | ReportaVNZLA (búsqueda estructurada) | ✅ |
+| — | HMAC signature verification | ⚠️ Bypass |
+| 🔜 | Reconocimiento facial (FR-API ReportaVNZLA) | Pendiente API key |
+| 🔜 | Búsqueda en DB local | Pendiente |
 
 ## 🔄 Flujo Zavu
 
@@ -170,10 +181,21 @@ Después de una búsqueda, el usuario puede escribir:
 Usuario Telegram → Telegram API → Zavu → Railway (/webhook) → FastAPI → router → handler → Zavu API → Telegram
 ```
 
-- Webhook recibe `X-Zavu-Signature: t=<ts>,v1=<hmac>` y verifica HMAC-SHA256
-- Router clasifica: comandos, menú numérico, texto libre, imágenes
-- State machine maneja flujo reportar con 5 pasos (en memoria, por chat_id)
+- Webhook recibe `X-Zavu-Signature: t=<ts>,v1=<hmac>` — HMAC en bypass (secret del canal Telegram solo en dashboard)
+- Router clasifica: comandos, menú numérico (1-5), texto libre, imágenes
+- State machine maneja flujo reportar con 5 pasos (en memoria, TTL implícito vía /start o /cancel)
 - Estado temporal de búsqueda guarda resultados pendientes por `chat_id` para paginar con opciones `1`, `2` y `3`
+- Búsqueda combinada: ReportaVNZLA (datos estructurados) + found-people-ve-bot (fallback)
+- Fotos se guardan como URL en SQLite — sin procesamiento facial
+
+### Menú principal
+```
+🔍 1. Buscar persona — por nombre o cédula
+📝 2. Registrar persona — desaparecida o encontrada
+🏠 3. Refugios cercanos — centros de ayuda
+📞 4. Teléfonos de emergencia
+🆘 5. Ayuda — cómo funciona el bot
+```
 
 ---
 

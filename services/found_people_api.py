@@ -4,6 +4,7 @@ from typing import List, Dict
 import aiohttp
 
 from config import Config
+from services.normalizer import normalizar_texto
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +18,11 @@ class FoundPeopleAPI:
         if not query or len(query) < 2:
             return []
 
+        query_norm = normalizar_texto(query)
+
         try:
             async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                params = {"q": query, "page": 1, "pageSize": 10}
+                params = {"q": query_norm, "page": 1, "pageSize": 10}
                 async with session.get(
                     f"{self.base_url}/api/v1/found-people",
                     params=params,

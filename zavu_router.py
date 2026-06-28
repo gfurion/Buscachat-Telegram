@@ -1,9 +1,6 @@
 import logging
-from typing import Callable, Awaitable
 
 logger = logging.getLogger(__name__)
-
-Handler = Callable[[dict], Awaitable[None]]
 
 
 def route_event(event: dict) -> str | None:
@@ -29,6 +26,8 @@ def route_event(event: dict) -> str | None:
         return "buscar"
     if text.startswith("/ayuda"):
         return "ayuda"
+    if text.startswith("/info"):
+        return "info"
     if text.startswith("/registrar"):
         return "registrar_cmd"
     if text.startswith("/emergencia") or text.startswith("/telefonos"):
@@ -58,6 +57,10 @@ def route_event(event: dict) -> str | None:
 
 def get_chat_id(event: dict) -> str:
     data = event.get("data", {})
-    # Zavu sends telegramChatId as a separate field (pure numeric)
-    # The "from" field has "telegram:" prefix which Zavu API rejects
-    return data.get("telegramChatId") or data.get("from", "")
+    chat_id = data.get("telegramChatId", "")
+    if chat_id:
+        return chat_id
+    from_field = data.get("from", "")
+    if from_field.startswith("telegram:"):
+        return from_field[len("telegram:"):]
+    return from_field

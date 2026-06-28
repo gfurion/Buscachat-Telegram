@@ -4,12 +4,11 @@ from typing import Optional, List, Tuple
 import numpy as np
 
 from config import Config
-from services.database import Database
+from services.database import get_db
 
 logger = logging.getLogger(__name__)
 
 _facerec = None
-_db = None
 
 
 def get_facerec():
@@ -26,13 +25,6 @@ def get_facerec():
             logger.warning(f"Could not load facerec: {e}")
             _facerec = None
     return _facerec
-
-
-def get_db():
-    global _db
-    if _db is None:
-        _db = Database()
-    return _db
 
 
 class FaceMatcher:
@@ -64,14 +56,6 @@ class FaceMatcher:
         db = get_db()
         db.guardar_embedding(persona_id, embedding)
 
-    def search(self, probe: np.ndarray) -> List[Tuple[str, float]]:
-        db = get_db()
-        results = db.buscar_por_facial(probe)
-        return [(p.nombre, score) for p, score in results]
-
     def buscar_personas(self, probe: np.ndarray) -> List[Tuple]:
         db = get_db()
         return db.buscar_por_facial(probe)
-
-    def clear(self):
-        pass

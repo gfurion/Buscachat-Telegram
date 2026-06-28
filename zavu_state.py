@@ -1,16 +1,12 @@
 import logging
 from typing import Optional
 
-import numpy as np
-
 from models.persona import Persona, TipoReporte
-from services.database import Database
-from services.face_matching import FaceMatcher
+from services.database import get_db
 
 logger = logging.getLogger(__name__)
 
-db = Database()
-face_matcher = FaceMatcher()
+db = get_db()
 
 NOMBRE = "reportar:step:nombre"
 CEDULA = "reportar:step:cedula"
@@ -38,6 +34,7 @@ class ReportStateMachine:
 
     @classmethod
     def start(cls, chat_id: str, tipo: str) -> str:
+        logger.info(f"Reportar start: tipo={tipo} chat_id={chat_id}")
         cls._states[chat_id] = {
             "step": NOMBRE,
             "tipo": tipo,
@@ -87,12 +84,6 @@ class ReportStateMachine:
         return cls._build_summary(state)
 
     @classmethod
-    def set_embedding(cls, chat_id: str, embedding: np.ndarray) -> None:
-        state = cls._states.get(chat_id)
-        if state:
-            state["embedding"] = embedding
-
-    @classmethod
     def _step_nombre(cls, state: dict, text: str) -> Optional[str]:
         if len(text) < 2:
             return "El nombre debe tener al menos 2 caracteres. Proba de nuevo:"
@@ -138,7 +129,9 @@ class ReportStateMachine:
 
     @classmethod
     def _save_report(cls, chat_id: str, state: dict) -> Optional[str]:
-        tipo = TipoReporte.DESAPARECIDO if state["tipo"] == "desaparecido" else TipoReporte.ENCONTRADO
+        tipo_str = state.get("tipo", "desaparecido")
+        tipo = TipoReporte.DESAPARECIDO if tipo_str == "desaparecido" else TipoReporte.ENCONTRADO
+        logger.info(f"Save report: tipo_str={tipo_str} tipo={tipo.value} chat_id={chat_id}")
         persona = Persona(
             nombre=state.get("nombre", ""),
             cedula=state.get("cedula", ""),
@@ -156,14 +149,6 @@ class ReportStateMachine:
             cls.cancel(chat_id)
             return "Error al guardar el reporte. Proba de nuevo con /start."
 
-        embedding = state.get("embedding")
-        if embedding is not None:
-            try:
-                face_matcher.store_embedding(persona_id, embedding)
-                logger.info(f"Embedding saved for persona_id={persona_id}")
-            except Exception as e:
-                logger.error(f"Error saving embedding: {e}")
-
         tipo_text = "desaparecido/a" if persona.tipo == TipoReporte.DESAPARECIDO else "encontrado/a"
         cls.cancel(chat_id)
         return (
@@ -176,8 +161,9 @@ class ReportStateMachine:
 
     @classmethod
     def _build_summary(cls, state: dict) -> str:
-        tipo = state["tipo"]
-        tipo_text = "desaparecido/a" if tipo == "desaparecido" else "encontrado/a"
+        tipo_str = state.get("tipo", "desaparecido")
+        tipo_text = "desaparecido/a" if tipo_str == "desaparecido" else "encontrado/a"
+        logger.info(f"Build summary: tipo_str={tipo_str} tipo_text={tipo_text}")
         return (
             f"*Resumen del reporte*\n\n"
             f"Tipo: *{tipo_text}*\n"

@@ -1,3 +1,3 @@
-from .persona import Persona, Reporte, TipoReporte
+from .persona import Persona, TipoReporte
 
 __all__ = ["Persona", "Reporte", "TipoReporte"]

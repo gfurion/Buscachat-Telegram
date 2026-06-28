@@ -12,30 +12,6 @@ class AcopioVEAPI:
     def __init__(self):
         self.timeout = aiohttp.ClientTimeout(total=10)
 
-    async def buscar_personas(self, query: str) -> List[Dict]:
-        if not query or len(query) < 2:
-            return []
-
-        try:
-            async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                params = {"q": query}
-                async with session.get(f"{BASE_URL}/personas", params=params) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        return data.get("data", [])
-                    elif resp.status == 429:
-                        logger.warning("Rate limit from AcopioVE /personas")
-                        return []
-                    else:
-                        logger.warning(f"AcopioVE /personas returned status {resp.status}")
-                        return []
-        except aiohttp.ClientError as e:
-            logger.error(f"Connection error calling AcopioVE /personas: {e}")
-            return []
-        except Exception as e:
-            logger.error(f"Unexpected error calling AcopioVE /personas: {e}")
-            return []
-
     async def buscar_puntos(
         self,
         tipo: str = "refugio",
@@ -93,24 +69,6 @@ class AcopioVEAPI:
         except Exception as e:
             logger.error(f"Unexpected error calling AcopioVE /telefonos: {e}")
             return []
-
-    def formatear_persona(self, persona: Dict) -> str:
-        nombre = persona.get("nombre", "Sin nombre")
-        estado = persona.get("estado", "?")
-        ubicacion = persona.get("ubicacion_general", "")
-        fuente = persona.get("fuente", "")
-        cedula = persona.get("cedula", "")
-
-        emoji = "📍" if estado == "localizado" else "🔍"
-        partes = [f"{emoji} *{nombre}* — {estado}"]
-        if ubicacion:
-            partes.append(f"   Ubicacion: {ubicacion}")
-        if cedula:
-            partes.append(f"   CI: {cedula}")
-        if fuente:
-            partes.append(f"   Fuente: {fuente}")
-
-        return "\n".join(partes)
 
     def formatear_punto(self, punto: Dict) -> str:
         nombre = punto.get("nombre", punto.get("name", "Sin nombre"))

@@ -1,6 +1,5 @@
 import sqlite3
 import logging
-import struct
 from datetime import datetime, UTC
 from typing import List, Optional, Tuple
 
@@ -34,16 +33,6 @@ class Database:
                     tipo TEXT NOT NULL DEFAULT 'desaparecido',
                     reporter_chat_id INTEGER NOT NULL,
                     created_at TEXT NOT NULL
-                )
-            """)
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS reportes (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    persona_id INTEGER NOT NULL,
-                    chat_id INTEGER NOT NULL,
-                    texto TEXT DEFAULT '',
-                    created_at TEXT NOT NULL,
-                    FOREIGN KEY (persona_id) REFERENCES personas(id)
                 )
             """)
             conn.execute("""
@@ -218,3 +207,13 @@ class Database:
             reporter_chat_id=row["reporter_chat_id"],
             created_at=datetime.fromisoformat(row["created_at"]),
         )
+
+
+_db_instance: Optional[Database] = None
+
+
+def get_db() -> Database:
+    global _db_instance
+    if _db_instance is None:
+        _db_instance = Database()
+    return _db_instance

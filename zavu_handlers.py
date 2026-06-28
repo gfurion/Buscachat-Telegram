@@ -1,9 +1,9 @@
 import asyncio
 import logging
 
-import aiohttp
+from cachetools import TTLCache
 
-from zavu_client import send_text, send_buttons
+from zavu_client import send_text
 from zavu_router import get_chat_id
 from services.face_matching import FaceMatcher
 from services.acopiove_api import AcopioVEAPI
@@ -13,7 +13,6 @@ from zavu_state import ReportStateMachine
 logger = logging.getLogger(__name__)
 people_search = PeopleSearchAggregator()
 acopiove = AcopioVEAPI()
-face_matcher = FaceMatcher()
 
 _refugios_waiting: dict[str, bool] = {}
 _search_results_state: dict[str, dict] = {}
@@ -53,7 +52,23 @@ AYUDA_TEXT = (
     "▸ /buscar \\[nombre\\] — Buscar persona\n"
     "▸ /registrar — Reportar persona\n"
     "▸ /refugios — Refugios cercanos\n"
-    "▸ /emergencia — Telefonos de emergencia"
+    "▸ /emergencia — Telefonos de emergencia\n"
+    "▸ /info — Fuentes de datos"
+)
+
+INFO_TEXT = (
+    "📊 *Fuentes de datos de BuscaChat*\n\n"
+    "Este bot consulta las siguientes fuentes:\n\n"
+    "▸ *ReportaVNZLA* — 15.000+ registros estructurados\n"
+    "  (nombre, cedula, edad, ubicacion)\n\n"
+    "▸ *found-people-ve-bot* — 35.000+ registros\n"
+    "  de 5 plataformas: venezuelatebusca.com,\n"
+    "  encuentralos.tecnosoft.dev,\n"
+    "  desaparecidosterremotovenezuela.com,\n"
+    "  terremotovenezuela.app\n\n"
+    "▸ *AcopioVE* — 575 centros de acopio,\n"
+    "  refugios y telefonos de emergencia\n\n"
+    "Proyecto voluntario de Build 4 Venezuela."
 )
 
 RESULTADO_TEXT = "\n🔁 Escribe *2* para hacer otra busqueda o *3* para volver al menu."
@@ -108,6 +123,11 @@ async def handle_ayuda(event: dict) -> None:
     await send_text_async(chat_id, AYUDA_TEXT)
 
 
+async def handle_info(event: dict) -> None:
+    chat_id = get_chat_id(event)
+    await send_text_async(chat_id, INFO_TEXT)
+
+
 async def handle_buscar(event: dict) -> None:
     chat_id = get_chat_id(event)
     clear_search_state(chat_id)
@@ -148,67 +168,29 @@ async def handle_free_text(event: dict) -> None:
         await _buscar_refugios(chat_id, query)
         return
 
+    if _registrar_waiting.pop(chat_id, None):
+        if query.lower() in ("desaparecido", "encontrado"):
+            tipo = query.lower()
+            prompt = ReportStateMachine.start(chat_id, tipo)
+            await send_text_async(chat_id, prompt)
+            return
+        elif query.lower() in ("desaparecida", "encontrada"):
+            tipo = query.lower().rstrip("a")
+            prompt = ReportStateMachine.start(chat_id, tipo)
+            await send_text_async(chat_id, prompt)
+            return
+
     await _realizar_busqueda(chat_id, query)
 
 
 async def handle_photo(event: dict) -> None:
     chat_id = get_chat_id(event)
-    media_url = event["data"].get("mediaUrl", "")
-
-    if not media_url:
-        await send_text_async(chat_id, "No se pudo obtener la imagen.")
-        return
-
-    await send_text_async(chat_id, "Analizando imagen...")
-
-    try:
-        timeout = aiohttp.ClientTimeout(total=30)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(media_url) as resp:
-                if resp.status != 200:
-                    await send_text_async(chat_id, "No se pudo descargar la imagen.")
-                    return
-                image_bytes = await resp.read()
-    except Exception as e:
-        logger.error(f"Error downloading image from {media_url}: {e}")
-        await send_text_async(chat_id, "Error al descargar la imagen. Proba de nuevo.")
-        return
-
-    probe = face_matcher.extract_embedding(image_bytes)
-    if probe is None:
-        await send_text_async(
-            chat_id,
-            "No se detecto ningun rostro en la foto.\n\n"
-            "Asegurate de enviar una foto clara del rostro de la persona.",
-        )
-        return
-
-    await send_text_async(chat_id, "Buscando coincidencias...")
-
-    matches = face_matcher.buscar_personas(probe)
-
-    if not matches:
-        await send_text_async(
-            chat_id,
-            "No se encontraron coincidencias con esa foto.\n\n"
-            "Escribi *1* para buscar por texto o *2* para volver al menu.",
-        )
-        return
-
-    respuesta = "*Resultados por busqueda facial*\n\n"
-    for i, (persona, score) in enumerate(matches[:5], 1):
-        respuesta += f"{i}. *{persona.nombre}* (similitud: {score:.0%})\n"
-        if persona.cedula:
-            respuesta += f"   Cedula: {persona.cedula}\n"
-        if persona.ubicacion:
-            respuesta += f"   Ubicacion: {persona.ubicacion}\n"
-        respuesta += "\n"
-
-    if len(matches) > 5:
-        respuesta += f"... y {len(matches) - 5} resultados mas\n\n"
-
-    respuesta += "Escribi *1* para buscar por texto o *2* para volver al menu."
-    await send_text_async(chat_id, respuesta)
+    logger.info(f"PHOTO EVENT (free search): data keys={list(event.get('data', {}).keys())}")
+    await send_text_async(
+        chat_id,
+        "La busqueda por foto no esta disponible por ahora.\n\n"
+        "Usa /buscar con nombre o cedula para buscar personas.",
+    )
 
 
 async def _realizar_busqueda(chat_id: str, query: str) -> None:
@@ -217,7 +199,27 @@ async def _realizar_busqueda(chat_id: str, query: str) -> None:
 
     resultados = await people_search.buscar(query)
 
-    if not resultados:
+    seen = set()
+    respuesta = f"*Resultados para {query}*\n\n"
+    count = 0
+
+    for persona in resultados_rvnzla[:5]:
+        nombre = (persona.get("nombre", "") + " " + persona.get("apellido", "")).strip()
+        if nombre and nombre.lower() not in seen:
+            seen.add(nombre.lower())
+            count += 1
+            respuesta += f"{count}. {reportavnzla.formatear_persona(persona)}\n\n"
+
+    for persona in resultados_api:
+        if count >= 5:
+            break
+        nombre = persona.get("fullName", "")
+        if nombre and nombre.lower() not in seen:
+            seen.add(nombre.lower())
+            count += 1
+            respuesta += f"{count}. {api.formatear_resultado(persona)}\n\n"
+
+    if count == 0:
         await send_text_async(
             chat_id,
             f"No encontre resultados para *{query}*.\n\n"
@@ -302,12 +304,14 @@ async def handle_registrar_cmd(event: dict) -> None:
     chat_id = get_chat_id(event)
     clear_search_state(chat_id)
     text = event["data"].get("text", "").strip()
+    _registrar_waiting.pop(chat_id, None)
 
     if "encontrado" in text:
         tipo = "encontrado"
     else:
         tipo = "desaparecido"
 
+    logger.info(f"Registrar: text={text[:50]} tipo={tipo} chat_id={chat_id}")
     prompt = ReportStateMachine.start(chat_id, tipo)
     await send_text_async(chat_id, prompt)
 
@@ -334,26 +338,11 @@ async def handle_reportar_photo(event: dict) -> None:
     chat_id = get_chat_id(event)
     media_url = event["data"].get("mediaUrl", "")
 
+    logger.info(f"REPORTAR PHOTO EVENT: data keys={list(event.get('data', {}).keys())}")
+
     if not media_url:
         await send_text_async(chat_id, "No se pudo obtener la imagen. Proba de nuevo o escribi /skip.")
         return
-
-    try:
-        timeout = aiohttp.ClientTimeout(total=30)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(media_url) as resp:
-                if resp.status != 200:
-                    await send_text_async(chat_id, "No se pudo descargar la imagen. Proba de nuevo o escribi /skip.")
-                    return
-                image_bytes = await resp.read()
-    except Exception as e:
-        logger.error(f"Error downloading image from {media_url}: {e}")
-        await send_text_async(chat_id, "Error al descargar la imagen. Proba de nuevo o escribi /skip.")
-        return
-
-    probe = face_matcher.extract_embedding(image_bytes)
-    if probe is not None:
-        ReportStateMachine.set_embedding(chat_id, probe)
 
     response = ReportStateMachine.handle_photo(chat_id, media_url)
 
@@ -409,17 +398,6 @@ async def handle_refugios(event: dict) -> None:
     )
 
 
-async def handle_refugios_ciudad(event: dict) -> None:
-    chat_id = get_chat_id(event)
-    text = event["data"].get("text", "").strip()
-
-    if len(text) < 2:
-        await send_text_async(chat_id, "Escribi el nombre de una ciudad (minimo 2 caracteres).")
-        return
-
-    await _buscar_refugios(chat_id, text)
-
-
 async def _buscar_refugios(chat_id: str, ciudad: str) -> None:
     await send_text_async(chat_id, f"Buscando refugios en {ciudad}...")
 
@@ -451,10 +429,6 @@ async def send_text_async(chat_id: str, text: str) -> None:
         logger.error(f"Failed to send message to {chat_id}: {e}")
 
 
-async def send_buttons_async(chat_id: str, text: str, buttons: list) -> None:
-    await asyncio.to_thread(send_buttons, chat_id, text, buttons)
-
-
 HANDLER_MAP = {
     "start": handle_start,
     "menu:buscar": handle_buscar_button,
@@ -462,6 +436,7 @@ HANDLER_MAP = {
     "menu:refugios": handle_refugios,
     "menu:emergencia": handle_emergencia,
     "ayuda": handle_ayuda,
+    "info": handle_info,
     "emergencia": handle_emergencia,
     "refugios": handle_refugios,
     "registrar_cmd": handle_registrar_cmd,
@@ -469,8 +444,6 @@ HANDLER_MAP = {
     "button:menu:registrar": handle_menu_registrar,
     "button:ayuda": handle_ayuda,
     "button:buscar": handle_buscar_button,
-    "button:reportar:desaparecido": handle_menu,
-    "button:reportar:encontrado": handle_menu,
     "buscar": handle_buscar,
     "free_text": handle_free_text,
     "photo": handle_photo,
