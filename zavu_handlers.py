@@ -211,14 +211,11 @@ async def handle_reportar_text(event: dict) -> None:
         await send_text_async(chat_id, "Escribi una respuesta valida.")
         return
 
-    if text == "/start":
-        ReportStateMachine.cancel(chat_id)
-        await send_text_async(chat_id, MENU_TEXT)
-        return
-
     response = ReportStateMachine.handle_text(chat_id, text)
 
     if response is None:
+        # State was canceled (via /start, /cancel, or "Cancelar")
+        await send_text_async(chat_id, MENU_TEXT)
         return
 
     await send_text_async(chat_id, response)

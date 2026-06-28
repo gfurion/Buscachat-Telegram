@@ -52,9 +52,10 @@ class ReportStateMachine:
         step = state["step"]
         text = text.strip()
 
-        if text == "/cancel":
+        # Universal escapes — work at ANY step
+        if text in ("/cancel", "Cancelar", "/start"):
             cls.cancel(chat_id)
-            return "Reporte cancelado.\n\nEscribi /start para volver al menu."
+            return None
 
         if step == NOMBRE:
             return cls._step_nombre(state, text)
@@ -117,10 +118,6 @@ class ReportStateMachine:
 
     @classmethod
     def _step_confirmar(cls, chat_id: str, state: dict, text: str) -> Optional[str]:
-        if text == "Cancelar":
-            cls.cancel(chat_id)
-            return "Reporte cancelado."
-
         if text != "Confirmar":
             return "Escribi *Confirmar* para guardar o *Cancelar* para descartar."
 

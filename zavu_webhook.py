@@ -91,7 +91,7 @@ async def webhook(request: Request):
             handler = HANDLER_MAP.get(active_route)
             if handler:
                 await handler(event)
-                logger.info(f"Event {event_id}: state machine step {active_route}")
+                logger.info(f"Event {event_id}: state machine step {active_route} (chat_id={chat_id})")
             else:
                 logger.warning(f"No handler for state route: {active_route}")
         else:
@@ -101,11 +101,11 @@ async def webhook(request: Request):
                 handler = HANDLER_MAP.get(handler_name)
                 if handler:
                     await handler(event)
-                    logger.info(f"Event {event_id} handled by {handler_name}")
+                    logger.info(f"Event {event_id} handled by {handler_name} (chat_id={chat_id})")
                 else:
                     logger.warning(f"No handler for route: {handler_name}")
             else:
-                logger.info(f"Event {event_id}: no route matched")
+                logger.info(f"Event {event_id}: no route matched (chat_id={chat_id})")
 
     except Exception as e:
         logger.error(f"Error processing event {event_id}: {e}", exc_info=True)
