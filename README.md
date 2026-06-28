@@ -4,7 +4,7 @@ Bot de Telegram para reunificación familiar tras el terremoto en Venezuela (Mw 
 
 Parte del hackathon **Build 4 Venezuela**.
 
-[![Tests](https://img.shields.io/badge/tests-84%2F84%20passing-brightgreen)](https://github.com/gfurion/Buscachat-Telegram)
+[![Tests](https://img.shields.io/badge/tests-86%2F86%20passing-brightgreen)](https://github.com/gfurion/Buscachat-Telegram)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://python.org)
 [![Deploy](https://img.shields.io/badge/deploy-Railway-8B5CF6)](https://buscachat-telegram-production.up.railway.app/health)
 [![Zavu](https://img.shields.io/badge/platform-Zavu-6366F1)](https://zavu.dev)
@@ -22,6 +22,7 @@ Parte del hackathon **Build 4 Venezuela**.
 | `3` o `/refugios [ciudad]` | Centros de ayuda y refugios por ciudad (AcopioVE) |
 | `4` o `/emergencia` | Teléfonos de emergencia (AcopioVE) |
 | `5` o `/ayuda` | Instrucciones de uso |
+| `/info` | Fuentes de datos y APIs consultadas |
 | **Enviar foto** | Guarda la URL de la foto en el registro (reconocimiento facial no activo) |
 | **HMAC** | Webhook signature verification (bypass activo — Telegram channel secret solo en dashboard Zavu) |
 
@@ -35,7 +36,7 @@ Parte del hackathon **Build 4 Venezuela**.
 - **SQLite** — base de datos local (MVP)
 - **InsightFace / ArcFace** — reconocimiento facial (facerec.py de Venezuela Juntos)
 - **Railway** — hosting (webhook FastAPI)
-- **pytest + pytest-asyncio** — 84 tests
+- **pytest + pytest-asyncio** — 86 tests
 
 ## 📁 Estructura del proyecto
 
@@ -60,7 +61,7 @@ buscachat-telegram/
 │   └── persona.py             # Persona, TipoReporte
 ├── lib/
 │   └── facerec.py             # ArcFace standalone (Venezuela Juntos, no activo)
-└── tests/                     # 84 tests
+└── tests/                     # 86 tests
     ├── test_zavu.py           # 11 tests del router Zavu
     ├── test_zavu_state.py     # 25 tests del state machine
     ├── test_zavu_handlers.py  # 14 tests de handlers Zavu
@@ -136,7 +137,7 @@ python main.py
 | BUS-25 | Flujo reportar encontrado | ✅ |
 | BUS-26 | DB con embeddings | ✅ |
 | BUS-27 | Deploy Railway | ✅ Producción |
-| BUS-28 | Tests | ✅ 84/84 |
+| BUS-28 | Tests | ✅ 86/86 |
 | BUS-29 | Integración Zavu (webhook, menú, handlers, state machine) | ✅ |
 | — | AcopioVE (refugios, emergencia) | ✅ |
 | — | ReportaVNZLA (búsqueda estructurada) | ✅ |
