@@ -216,3 +216,30 @@ class TestZavuHandlers:
         assert any("Resumen" in s for s in sent)
         assert ReportStateMachine.is_active("123456")
         assert ReportStateMachine._states["123456"]["step"] == "reportar:step:confirmar"
+
+    def test_handle_reportar_photo_with_telegram_file_id(self, monkeypatch):
+        sent = []
+        monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: sent.append(text))
+        monkeypatch.setattr("zavu_handlers.send_image_async", lambda to, url: None)
+
+        from unittest.mock import AsyncMock
+        mock_resolve = AsyncMock(return_value="https://api.telegram.org/file/botTOKEN/photos/foto.jpg")
+        monkeypatch.setattr("zavu_handlers._resolve_telegram_media", mock_resolve)
+
+        from zavu_state import ReportStateMachine
+        ReportStateMachine.start("123456", "desaparecido")
+        ReportStateMachine.handle_text("123456", "Test Person")
+        ReportStateMachine.handle_text("123456", "12345678")
+        ReportStateMachine.handle_text("123456", "Caracas")
+
+        event = make_event(message_type="image")
+        event["data"]["content"] = {"telegramFileId": "AgACAgEAAxkBAAIDeGpC5k9OS-tLMvBgEbbQ-gJAwfpaAAKzDGsbzZcZRprbaSPG95PUAQADAgADbQADPAQ"}
+
+        import asyncio
+        from zavu_handlers import handle_reportar_photo
+        asyncio.run(handle_reportar_photo(event))
+
+        assert any("Resumen" in s for s in sent)
+        assert ReportStateMachine.is_active("123456")
+        assert ReportStateMachine._states["123456"]["step"] == "reportar:step:confirmar"
+        mock_resolve.assert_awaited_once_with("AgACAgEAAxkBAAIDeGpC5k9OS-tLMvBgEbbQ-gJAwfpaAAKzDGsbzZcZRprbaSPG95PUAQADAgADbQADPAQ")

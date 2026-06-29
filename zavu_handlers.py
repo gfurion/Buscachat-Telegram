@@ -358,7 +358,7 @@ async def handle_reportar_photo(event: dict) -> None:
     logger.info(f"REPORTAR PHOTO: content={content_preview}")
 
     media_url = content.get("mediaUrl") or data.get("mediaUrl") or ""
-    media_id = content.get("mediaId") or ""
+    media_id = content.get("mediaId") or content.get("telegramFileId") or ""
 
     if not media_url and media_id:
         resolved = await _resolve_telegram_media(media_id)
