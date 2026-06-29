@@ -195,3 +195,24 @@ class TestZavuHandlers:
         asyncio.run(handle_reportar_photo(make_event(message_type="image")))
 
         assert any("No se pudo obtener" in s for s in sent)
+
+    def test_handle_reportar_photo_with_url(self, monkeypatch):
+        sent = []
+        monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: sent.append(text))
+        from zavu_state import ReportStateMachine
+        ReportStateMachine.start("123456", "desaparecido")
+        # Advance to FOTO step
+        ReportStateMachine.handle_text("123456", "Test Person")
+        ReportStateMachine.handle_text("123456", "12345678")
+        ReportStateMachine.handle_text("123456", "Caracas")
+
+        event = make_event(message_type="image")
+        event["data"]["content"] = {"mediaUrl": "https://example.com/foto.jpg"}
+
+        import asyncio
+        from zavu_handlers import handle_reportar_photo
+        asyncio.run(handle_reportar_photo(event))
+
+        assert any("Resumen" in s for s in sent)
+        assert ReportStateMachine.is_active("123456")
+        assert ReportStateMachine._states["123456"]["step"] == "reportar:step:confirmar"

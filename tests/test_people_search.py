@@ -198,6 +198,40 @@ async def test_buscar_incluye_resultados_locales():
 
 
 @pytest.mark.asyncio
+async def test_buscar_incluye_foto_path_local():
+    search = PeopleSearchAggregator(
+        reportavnzla=FakeReportaClient([]),
+        found_people=FakeClient([]),
+        acopiove=FakeAcopioClient([]),
+        db=FakeLocalDb([
+            Persona(nombre="Ana Torres", foto_path="https://example.com/foto.jpg"),
+        ]),
+    )
+
+    results = await search.buscar("Ana")
+
+    assert len(results) == 1
+    assert results[0].foto_path == "https://example.com/foto.jpg"
+
+
+@pytest.mark.asyncio
+async def test_formatear_resultado_incluye_foto():
+    search = PeopleSearchAggregator(
+        reportavnzla=FakeReportaClient([]),
+        found_people=FakeClient([]),
+        acopiove=FakeAcopioClient([]),
+    )
+    from services.people_search import PeopleSearchResult
+    result = PeopleSearchResult(
+        nombre="Ana Torres",
+        fuente="BuscaChat (local)",
+        foto_path="https://example.com/foto.jpg",
+    )
+    formatted = search.formatear_resultado(result)
+    assert "Foto: disponible" in formatted
+
+
+@pytest.mark.asyncio
 async def test_buscar_continues_when_db_fails():
     search = PeopleSearchAggregator(
         reportavnzla=FakeReportaClient([]),

@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 from cachetools import TTLCache
-from zavu_client import send_text
+from zavu_client import send_text, send_image
 from zavu_router import get_chat_id
 from services.database import get_db
 from services.face_matching import FaceMatcher
@@ -210,7 +210,7 @@ async def _realizar_busqueda(chat_id: str, query: str) -> None:
         )
         return
 
-    respuesta = _format_search_page(query, resultados, 0)
+    respuesta, fotos = _format_search_page(query, resultados, 0)
 
     _search_results_state[chat_id] = {
         "query": query,
@@ -218,6 +218,8 @@ async def _realizar_busqueda(chat_id: str, query: str) -> None:
         "next_index": min(SEARCH_PAGE_SIZE, len(resultados)),
     }
     await send_text_async(chat_id, respuesta)
+    for foto_url in fotos:
+        await send_image_async(chat_id, foto_url)
 
 
 async def handle_search_more(event: dict) -> None:
@@ -239,9 +241,11 @@ async def handle_search_more(event: dict) -> None:
         )
         return
 
-    response = _format_search_page(state["query"], results, next_index)
+    response, fotos = _format_search_page(state["query"], results, next_index)
     state["next_index"] = min(next_index + SEARCH_PAGE_SIZE, len(results))
     await send_text_async(chat_id, response)
+    for foto_url in fotos:
+        await send_image_async(chat_id, foto_url)
 
 
 async def handle_search_new(event: dict) -> None:
@@ -259,12 +263,15 @@ async def handle_search_menu(event: dict) -> None:
     await send_text_async(chat_id, MENU_TEXT)
 
 
-def _format_search_page(query: str, results: list, start_index: int) -> str:
+def _format_search_page(query: str, results: list, start_index: int) -> tuple[str, list[str]]:
     end_index = min(start_index + SEARCH_PAGE_SIZE, len(results))
     response = f"*Resultados para {query}*\n\n"
 
+    photo_urls: list[str] = []
     for i, persona in enumerate(results[start_index:end_index], start_index + 1):
         response += f"{i}. {people_search.formatear_resultado(persona)}\n\n"
+        if getattr(persona, "foto_path", ""):
+            photo_urls.append(persona.foto_path)
 
     total = len(results)
     shown = end_index
@@ -280,7 +287,7 @@ def _format_search_page(query: str, results: list, start_index: int) -> str:
     else:
         response += "Escribe *2* para hacer otra busqueda o *3* para volver al menu."
 
-    return response
+    return response, photo_urls
 
 
 async def handle_registrar_cmd(event: dict) -> None:
@@ -319,9 +326,12 @@ async def handle_reportar_text(event: dict) -> None:
 
 async def handle_reportar_photo(event: dict) -> None:
     chat_id = get_chat_id(event)
-    media_url = event["data"].get("mediaUrl", "")
 
     logger.info(f"REPORTAR PHOTO EVENT: data keys={list(event.get('data', {}).keys())}")
+
+    data = event.get("data", {})
+    content = data.get("content", {}) or {}
+    media_url = content.get("mediaUrl") or data.get("mediaUrl") or ""
 
     if not media_url:
         await send_text_async(chat_id, "No se pudo obtener la imagen. Proba de nuevo o escribi /skip.")
@@ -410,6 +420,13 @@ async def send_text_async(chat_id: str, text: str) -> None:
         await asyncio.to_thread(send_text, chat_id, text)
     except Exception as e:
         logger.error(f"Failed to send message to {chat_id}: {e}")
+
+
+async def send_image_async(chat_id: str, image_url: str, caption: str = "") -> None:
+    try:
+        await asyncio.to_thread(send_image, chat_id, image_url, caption)
+    except Exception as e:
+        logger.error(f"Failed to send image to {chat_id}: {e}")
 
 
 HANDLER_MAP = {

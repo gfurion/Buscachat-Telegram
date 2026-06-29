@@ -21,6 +21,7 @@ class PeopleSearchResult:
     estado: str = ""
     ubicacion: str = ""
     info: str = ""
+    foto_path: str = ""
     source_url: str = ""
     raw: Dict[str, Any] = field(default_factory=dict)
 
@@ -88,6 +89,7 @@ class PeopleSearchAggregator:
             estado="reportado",
             ubicacion=persona.ubicacion,
             info=persona.descripcion,
+            foto_path=persona.foto_path or "",
             fuente="BuscaChat (local)",
             raw={"id": persona.id, "tipo": persona.tipo.value if persona.tipo else ""},
         )
@@ -179,6 +181,8 @@ class PeopleSearchAggregator:
             partes.append(f"Ubicacion: {result.ubicacion}")
         if result.info:
             partes.append(f"Info: {result.info[:200]}")
+        if result.foto_path:
+            partes.append("Foto: disponible")
         partes.append(f"Fuente: {result.fuente}")
         if result.source_url:
             partes.append(f"URL: {result.source_url}")
