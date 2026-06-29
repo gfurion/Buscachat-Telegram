@@ -4,7 +4,7 @@ import logging
 
 import aiohttp
 from cachetools import TTLCache
-from zavu_client import send_text, send_image
+from zavu_client import send_text, send_image, _zavu
 from zavu_router import get_chat_id
 from config import Config
 from services.database import get_db
@@ -356,14 +356,29 @@ async def handle_reportar_photo(event: dict) -> None:
     content = data.get("content", {}) or {}
     content_preview = json.dumps(content, ensure_ascii=False)[:500]
     logger.info(f"REPORTAR PHOTO: content={content_preview}")
+    logger.info(f"REPORTAR PHOTO data keys: {list(data.keys())}")
 
     media_url = content.get("mediaUrl") or data.get("mediaUrl") or ""
     media_id = content.get("mediaId") or content.get("telegramFileId") or ""
 
     if not media_url and media_id:
-        resolved = await _resolve_telegram_media(media_id)
-        if resolved:
-            media_url = resolved
+        msg_id = data.get("message", {}).get("id") or data.get("id") or data.get("messageId")
+        if msg_id:
+            logger.info(f"Trying Zavu messages.retrieve({msg_id}) for media_url")
+            try:
+                msg_resp = await asyncio.to_thread(_zavu.messages.retrieve, msg_id)
+                if msg_resp and msg_resp.message and msg_resp.message.content:
+                    resolved_url = msg_resp.message.content.media_url
+                    if resolved_url:
+                        logger.info(f"Resolved media_url via Zavu retrieve: {resolved_url[:60]}...")
+                        media_url = resolved_url
+            except Exception as e:
+                logger.error(f"Zavu messages.retrieve error: {e}")
+
+        if not media_url:
+            resolved = await _resolve_telegram_media(media_id)
+            if resolved:
+                media_url = resolved
 
     if not media_url:
         await send_text_async(chat_id, "No se pudo obtener la imagen. Proba de nuevo o escribi /skip.")
