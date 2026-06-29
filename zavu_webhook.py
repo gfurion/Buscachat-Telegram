@@ -85,18 +85,13 @@ async def webhook(request: Request):
     try:
         chat_id = get_chat_id(event)
         active_route = ReportStateMachine.get_route(chat_id)
-        msg_type = event.get("data", {}).get("messageType", "")
 
         if active_route:
-            # During FOTO step: route images to photo handler, text to text handler
-            if active_route == "reportar:step:foto" and msg_type == "image":
-                handler = HANDLER_MAP.get("reportar:step:foto")
-            else:
-                handler = HANDLER_MAP.get("reportar:step:text")
+            handler = HANDLER_MAP.get("reportar:step:text")
 
             if handler:
                 await handler(event)
-                logger.info(f"Event {event_id}: state machine step {active_route} (chat_id={chat_id}, msg_type={msg_type})")
+                logger.info(f"Event {event_id}: state machine step {active_route} (chat_id={chat_id})")
             else:
                 logger.warning(f"No handler for state route: {active_route}")
         else:

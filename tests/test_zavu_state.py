@@ -1,5 +1,5 @@
 import pytest
-from zavu_state import ReportStateMachine, NOMBRE, CEDULA, UBICACION, FOTO, CONFIRMAR
+from zavu_state import ReportStateMachine, NOMBRE, CEDULA, UBICACION, CONFIRMAR
 
 
 class TestReportStateMachine:
@@ -52,47 +52,14 @@ class TestReportStateMachine:
         ReportStateMachine.handle_text("chat1", "Maria")
         ReportStateMachine.handle_text("chat1", "12345")
         resp = ReportStateMachine.handle_text("chat1", "Caracas")
-        assert "foto" in resp.lower()
+        assert "resumen" in resp.lower() or "confirmar" in resp.lower()
 
     def test_step_ubicacion_skip(self):
         ReportStateMachine.start("chat1", "desaparecido")
         ReportStateMachine.handle_text("chat1", "Maria")
         ReportStateMachine.handle_text("chat1", "12345")
         resp = ReportStateMachine.handle_text("chat1", "/skip")
-        assert "foto" in resp.lower()
-
-    def test_step_foto_skip(self):
-        ReportStateMachine.start("chat1", "desaparecido")
-        ReportStateMachine.handle_text("chat1", "Maria")
-        ReportStateMachine.handle_text("chat1", "12345")
-        ReportStateMachine.handle_text("chat1", "Caracas")
-        resp = ReportStateMachine.handle_text("chat1", "/skip")
         assert "resumen" in resp.lower() or "confirmar" in resp.lower()
-
-    def test_step_foto_non_skip_text(self):
-        ReportStateMachine.start("chat1", "desaparecido")
-        ReportStateMachine.handle_text("chat1", "Maria")
-        ReportStateMachine.handle_text("chat1", "12345")
-        ReportStateMachine.handle_text("chat1", "Caracas")
-        resp = ReportStateMachine.handle_text("chat1", "blah")
-        assert "foto" in resp.lower() and "skip" in resp.lower()
-
-    def test_handle_photo_advances_to_confirmar(self):
-        ReportStateMachine.start("chat1", "desaparecido")
-        ReportStateMachine.handle_text("chat1", "Maria")
-        ReportStateMachine.handle_text("chat1", "12345")
-        ReportStateMachine.handle_text("chat1", "Caracas")
-        resp = ReportStateMachine.handle_photo("chat1", "https://example.com/photo.jpg")
-        assert "resumen" in resp.lower() or "confirmar" in resp.lower()
-
-    def test_handle_photo_wrong_step(self):
-        ReportStateMachine.start("chat1", "desaparecido")
-        resp = ReportStateMachine.handle_photo("chat1", "https://example.com/photo.jpg")
-        assert resp is None
-
-    def test_handle_photo_no_state(self):
-        resp = ReportStateMachine.handle_photo("unknown", "https://example.com/photo.jpg")
-        assert resp is None
 
     def test_step_confirmar_valid(self, tmp_path, monkeypatch):
         monkeypatch.setattr("config.Config.DB_PATH", tmp_path / "test.db")
@@ -177,10 +144,3 @@ class TestReportStateMachine:
 
     def test_is_active_false(self):
         assert not ReportStateMachine.is_active("unknown")
-
-    def test_foto_route(self):
-        ReportStateMachine.start("chat1", "desaparecido")
-        ReportStateMachine.handle_text("chat1", "Maria")
-        ReportStateMachine.handle_text("chat1", "12345")
-        ReportStateMachine.handle_text("chat1", "Caracas")
-        assert ReportStateMachine.get_route("chat1") == "reportar:step:foto"

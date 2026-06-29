@@ -27,9 +27,6 @@ class ReportStateMachine:
         state = cls._states.get(chat_id)
         if not state:
             return None
-        step = state["step"]
-        if step == FOTO:
-            return "reportar:step:foto"
         return "reportar:step:text"
 
     @classmethod
@@ -67,21 +64,10 @@ class ReportStateMachine:
             return cls._step_cedula(state, text)
         elif step == UBICACION:
             return cls._step_ubicacion(state, text)
-        elif step == FOTO:
-            return cls._step_foto_skip(state, text)
         elif step == CONFIRMAR:
             return cls._step_confirmar(chat_id, state, text)
 
         return None
-
-    @classmethod
-    def handle_photo(cls, chat_id: str, media_url: str) -> Optional[str]:
-        state = cls._states.get(chat_id)
-        if not state or state["step"] != FOTO:
-            return None
-        state["foto_path"] = media_url
-        state["step"] = CONFIRMAR
-        return cls._build_summary(state)
 
     @classmethod
     def _step_nombre(cls, state: dict, text: str) -> Optional[str]:
@@ -108,17 +94,8 @@ class ReportStateMachine:
             state["ubicacion"] = ""
         else:
             state["ubicacion"] = text
-        state["step"] = FOTO
-        return "Envia una foto de la persona.\nEscribi /skip si no tenes."
-
-    @classmethod
-    def _step_foto_skip(cls, state: dict, text: str) -> Optional[str]:
-        if text == "/skip":
-            state["foto_path"] = None
-            state["foto_file_id"] = None
-            state["step"] = CONFIRMAR
-            return cls._build_summary(state)
-        return "Envia una foto o escribi /skip si no tenes."
+        state["step"] = CONFIRMAR
+        return cls._build_summary(state)
 
     @classmethod
     def _step_confirmar(cls, chat_id: str, state: dict, text: str) -> Optional[str]:
@@ -169,8 +146,7 @@ class ReportStateMachine:
             f"Tipo: *{tipo_text}*\n"
             f"Nombre: *{state.get('nombre', '-')}*\n"
             f"Cedula: {state.get('cedula') or 'No informada'}\n"
-            f"Ubicacion: {state.get('ubicacion') or 'No informada'}\n"
-            f"Foto: {'Enviada' if state.get('foto_path') else 'No enviada'}\n\n"
+            f"Ubicacion: {state.get('ubicacion') or 'No informada'}\n\n"
             "Escribi *Confirmar* para guardar o *Cancelar* para descartar."
         )
 
