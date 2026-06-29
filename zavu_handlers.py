@@ -1,9 +1,12 @@
 import asyncio
+import json
 import logging
 
+import aiohttp
 from cachetools import TTLCache
 from zavu_client import send_text, send_image
 from zavu_router import get_chat_id
+from config import Config
 from services.database import get_db
 from services.face_matching import FaceMatcher
 from services.acopiove_api import AcopioVEAPI
@@ -324,14 +327,43 @@ async def handle_reportar_text(event: dict) -> None:
     await send_text_async(chat_id, response)
 
 
+async def _resolve_telegram_media(media_id: str) -> str | None:
+    token = Config.TELEGRAM_BOT_TOKEN
+    if not token:
+        logger.error("TELEGRAM_BOT_TOKEN not configured")
+        return None
+    url = f"https://api.telegram.org/bot{token}/getFile?file_id={media_id}"
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                data = await resp.json()
+                if data.get("ok") and data.get("result", {}).get("file_path"):
+                    file_path = data["result"]["file_path"]
+                    download_url = f"https://api.telegram.org/file/bot{token}/{file_path}"
+                    logger.info(f"Resolved media_id {media_id[:20]}... to {download_url[:60]}...")
+                    return download_url
+                logger.warning(f"Telegram getFile failed for {media_id[:20]}...: {data}")
+                return None
+    except Exception as e:
+        logger.error(f"Telegram getFile error: {e}")
+        return None
+
+
 async def handle_reportar_photo(event: dict) -> None:
     chat_id = get_chat_id(event)
 
-    logger.info(f"REPORTAR PHOTO EVENT: data keys={list(event.get('data', {}).keys())}")
-
     data = event.get("data", {})
     content = data.get("content", {}) or {}
+    content_preview = json.dumps(content, ensure_ascii=False)[:500]
+    logger.info(f"REPORTAR PHOTO: content={content_preview}")
+
     media_url = content.get("mediaUrl") or data.get("mediaUrl") or ""
+    media_id = content.get("mediaId") or ""
+
+    if not media_url and media_id:
+        resolved = await _resolve_telegram_media(media_id)
+        if resolved:
+            media_url = resolved
 
     if not media_url:
         await send_text_async(chat_id, "No se pudo obtener la imagen. Proba de nuevo o escribi /skip.")
