@@ -237,20 +237,38 @@ class TestBuscarSubOptions:
 
 class TestRefugiosSubOptions:
     @pytest.mark.asyncio
-    async def test_btn_refugios_ciudad_sends_text(self):
-        from zavu_handlers import handle_btn_refugios_ciudad
-        with patch("zavu_handlers.send_text_async") as mock_send:
-            mock_send.return_value = None
-            await handle_btn_refugios_ciudad("123456")
-            mock_send.assert_called_once()
+    async def test_handle_refugios_ciudades_sends_message(self):
+        from zavu_handlers import handle_refugios_ciudades, _ciudades_cache
+        _ciudades_cache.clear()
+        sent = []
+        async def fake_send(chat_id, text):
+            sent.append(text)
+        with patch("zavu_handlers.send_text_async", fake_send):
+            with patch("zavu_handlers.acopiove.buscar_puntos", AsyncMock(return_value=[])):
+                await handle_refugios_ciudades("123456")
+        assert any("No se encontraron" in s for s in sent)
 
     @pytest.mark.asyncio
-    async def test_btn_refugios_mapa_sends_text(self):
-        from zavu_handlers import handle_btn_refugios_mapa
-        with patch("zavu_handlers.send_text_async") as mock_send:
-            mock_send.return_value = None
-            await handle_btn_refugios_mapa("123456")
-            mock_send.assert_called_once()
+    async def test_handle_refugios_ciudades_with_data_sends_buttons(self):
+        from zavu_handlers import handle_refugios_ciudades, _ciudades_cache
+        _ciudades_cache.clear()
+        mock_puntos = [
+            {"nombre": "R1", "ciudad": "Caracas"},
+            {"nombre": "R2", "ciudad": "Caracas"},
+            {"nombre": "R3", "ciudad": "Maracaibo"},
+        ]
+        sent_text = []
+        async def fake_send(chat_id, text):
+            sent_text.append(text)
+        with patch("zavu_handlers.send_text_async", fake_send):
+            with patch("zavu_handlers.acopiove.buscar_puntos", AsyncMock(return_value=mock_puntos)):
+                with patch("zavu_handlers.send_menu_with_buttons_async") as mock_menu:
+                    mock_menu.return_value = None
+                    await handle_refugios_ciudades("123456")
+                    mock_menu.assert_called_once()
+                    buttons = mock_menu.call_args[0][2]
+                    assert "Caracas" in buttons[0][0]["text"]
+                    assert "Maracaibo" in buttons[1][0]["text"]
 
 
 class TestEmergenciaSubOptions:
@@ -312,9 +330,10 @@ class TestHandlerMapInlineButtons:
             "btn:1", "btn:2", "btn:3", "btn:4", "btn:5",
             "btn:buscar:nombre", "btn:buscar:cedula", "btn:buscar:foto",
             "btn:registrar:desaparecido", "btn:registrar:encontrado",
-            "btn:refugios:ciudad", "btn:refugios:mapa",
+            "btn:refugios:ciudades", "btn:refugios:ciudades:page", "btn:refugios:ciudad:*",
             "btn:emergencia:medica", "btn:emergencia:policial", "btn:emergencia:bomberos",
             "btn:ayuda:como_usar", "btn:ayuda:privacidad", "btn:ayuda:contacto",
+            "btn:search:more", "btn:search:new", "btn:search:menu",
             "btn:menu"
         ]
         for key in expected_keys:

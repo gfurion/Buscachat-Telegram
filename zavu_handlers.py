@@ -23,6 +23,7 @@ acopiove = AcopioVEAPI()
 
 _refugios_waiting: TTLCache[str, bool] = TTLCache(maxsize=10000, ttl=600)
 _registrar_waiting: TTLCache[str, bool] = TTLCache(maxsize=10000, ttl=600)
+_ciudades_cache: TTLCache[str, list] = TTLCache(maxsize=10, ttl=300)
 _search_results_state: dict[str, dict] = {}
 SEARCH_PAGE_SIZE = 5
 
@@ -295,6 +296,11 @@ async def _realizar_busqueda(chat_id: str, query: str) -> None:
     for foto_url in fotos:
         await send_image_async(chat_id, foto_url)
 
+    buttons = _build_search_nav_buttons(chat_id)
+    if len(buttons) > 1 or (buttons and len(resultados) < SEARCH_PAGE_SIZE):
+        pass
+    await send_menu_with_buttons_async(chat_id, "¿Qué querés hacer?", buttons)
+
 
 async def handle_search_more(chat_id: str, text: str = "") -> None:
     state = _search_results_state.get(chat_id)
@@ -320,6 +326,9 @@ async def handle_search_more(chat_id: str, text: str = "") -> None:
     for foto_url in fotos:
         await send_image_async(chat_id, foto_url)
 
+    buttons = _build_search_nav_buttons(chat_id)
+    await send_menu_with_buttons_async(chat_id, "¿Qué querés hacer?", buttons)
+
 
 async def handle_search_new(chat_id: str, text: str = "") -> None:
     clear_search_state(chat_id)
@@ -332,6 +341,28 @@ async def handle_search_new(chat_id: str, text: str = "") -> None:
 async def handle_search_menu(chat_id: str, text: str = "") -> None:
     clear_search_state(chat_id)
     await send_text_async(chat_id, MENU_TEXT)
+
+
+async def handle_search_nav(chat_id: str, text: str = "") -> None:
+    action = text.split(":")[-1] if ":" in text else ""
+    if action == "more":
+        await handle_search_more(chat_id, "")
+    elif action == "new":
+        await handle_search_new(chat_id, "")
+    elif action == "menu":
+        await handle_search_menu(chat_id, "")
+
+
+def _build_search_nav_buttons(chat_id: str) -> list[list[dict]]:
+    state = _search_results_state.get(chat_id)
+    buttons = []
+    if state and state["next_index"] < len(state["results"]):
+        buttons.append([{"text": "➡️ Siguiente", "callback_data": "btn:search:more"}])
+    nav_row = []
+    nav_row.append({"text": "🆕 Nueva búsqueda", "callback_data": "btn:search:new"})
+    nav_row.append({"text": "🏠 Menú", "callback_data": "btn:search:menu"})
+    buttons.append(nav_row)
+    return buttons
 
 
 def _format_search_page(query: str, results: list, start_index: int) -> tuple[str, list[str]]:
@@ -441,9 +472,20 @@ async def _buscar_refugios(chat_id: str, ciudad: str) -> None:
     puntos = await acopiove.buscar_puntos(tipo="refugio", ciudad=ciudad)
 
     if not puntos:
+        acopios = await acopiove.buscar_puntos(tipo="acopio", ciudad=ciudad)
+        if acopios:
+            respuesta = f"🏠 *No hay refugios en {ciudad}*, pero hay {len(acopios)} centros de acopio:\n\n"
+            for punto in acopios[:5]:
+                respuesta += f"{acopiove.formatear_punto(punto)}\n\n"
+            if len(acopios) > 5:
+                respuesta += f"... y {len(acopios) - 5} mas\n\n"
+            respuesta += "Escribe /start para volver al menu."
+            await send_text_async(chat_id, respuesta)
+            return
+
         await send_text_async(
             chat_id,
-            f"No se encontraron refugios en *{ciudad}*.\n\n"
+            f"No se encontraron refugios ni centros de acopio en *{ciudad}*.\n\n"
             "Intenta con otra ciudad o escribe /start para volver al menu.",
         )
         return
@@ -483,14 +525,77 @@ async def handle_btn_buscar_foto(chat_id: str, text: str = "", message_id: int |
     await send_text_async(chat_id, "🔍 *Buscar por foto*\n\nAdjuntá una foto de la persona que buscás.")
 
 
-async def handle_btn_refugios_ciudad(chat_id: str, text: str = "", message_id: int | None = None) -> None:
-    _refugios_waiting[chat_id] = True
-    await send_text_async(chat_id, "🏠 *Refugios por ciudad*\n\nEscribí el nombre de la ciudad para buscar refugios cercanos:")
+async def handle_refugios_ciudades(chat_id: str, text: str = "", message_id: int | None = None) -> None:
+    clear_search_state(chat_id)
+
+    page = 0
+    if text.startswith("btn:refugios:ciudades:page:"):
+        try:
+            page = int(text.rsplit(":", 1)[-1])
+        except (ValueError, IndexError):
+            page = 0
+
+    await send_text_async(chat_id, "Obteniendo lista de ciudades...")
+
+    try:
+        ciudades_data = _ciudades_cache.get("all")
+        if ciudades_data is None:
+            puntos = await acopiove.buscar_puntos(tipo="refugio")
+            if not puntos:
+                puntos = await acopiove.buscar_puntos()
+            city_counts: dict[str, int] = {}
+            for p in puntos:
+                ciudad = p.get("ciudad", "").strip()
+                if not ciudad:
+                    continue
+                city_counts[ciudad] = city_counts.get(ciudad, 0) + 1
+            ciudades_data = sorted(city_counts.items(), key=lambda x: (-x[1], x[0]))
+            _ciudades_cache["all"] = ciudades_data
+
+        if not ciudades_data:
+            await send_text_async(chat_id, "No se encontraron ciudades con datos disponibles.")
+            return
+
+        PAGE_SIZE = 10
+        total = len(ciudades_data)
+        start = page * PAGE_SIZE
+        end = min(start + PAGE_SIZE, total)
+
+        if start >= total:
+            await send_text_async(chat_id, "No hay más ciudades disponibles.")
+            return
+
+        page_ciudades = ciudades_data[start:end]
+        buttons = []
+        for ciudad, count in page_ciudades:
+            buttons.append([{"text": f"🏙️ {ciudad} ({count})", "callback_data": f"btn:refugios:ciudad:{ciudad}"}])
+
+        nav_row = []
+        if page > 0:
+            nav_row.append({"text": "⬅️ Anterior", "callback_data": f"btn:refugios:ciudades:page:{page - 1}"})
+        if end < total:
+            nav_row.append({"text": "➡️ Siguiente", "callback_data": f"btn:refugios:ciudades:page:{page + 1}"})
+        if nav_row:
+            buttons.append(nav_row)
+        buttons.append([{"text": "🔙 Volver al menú", "callback_data": "btn:menu"}])
+
+        response = f"*Refugios por ciudad*\n\nSeleccioná una ciudad ({start + 1}-{end} de {total}):"
+        if message_id:
+            await edit_menu_async(int(chat_id), message_id, response, buttons)
+        else:
+            await send_menu_with_buttons_async(chat_id, response, buttons)
+    except Exception as e:
+        logger.error(f"Error fetching cities: {e}")
+        await send_text_async(chat_id, "Error al obtener lista de ciudades. Escribí /start para volver.")
 
 
-async def handle_btn_refugios_mapa(chat_id: str, text: str = "", message_id: int | None = None) -> None:
-    _refugios_waiting[chat_id] = True
-    await send_text_async(chat_id, "🏠 *Mapa de refugios*\n\nEscribí tu ubicación para ver refugios cercanos en el mapa:")
+async def handle_refugios_ciudad_item(chat_id: str, text: str = "", message_id: int | None = None) -> None:
+    prefix = "btn:refugios:ciudad:"
+    ciudad = text[len(prefix):] if text.startswith(prefix) else text
+    if not ciudad:
+        await send_text_async(chat_id, "No se especificó una ciudad.")
+        return
+    await _buscar_refugios(chat_id, ciudad)
 
 
 async def handle_btn_emergencia_medica(chat_id: str, text: str = "", message_id: int | None = None) -> None:
@@ -535,8 +640,7 @@ async def handle_btn_buscar(chat_id: str, text: str = "", message_id: int | None
 async def handle_btn_refugios(chat_id: str, text: str = "", message_id: int | None = None) -> None:
     clear_search_state(chat_id)
     sub_buttons = [
-        [{"text": "🏙️ Refugios por ciudad", "callback_data": "btn:refugios:ciudad"}],
-        [{"text": "🗺️ Ver mapa de refugios", "callback_data": "btn:refugios:mapa"}],
+        [{"text": "🏙️ Refugios y centros de acopio", "callback_data": "btn:refugios:ciudades"}],
         [{"text": "🔙 Volver al menú", "callback_data": "btn:menu"}],
     ]
     response = "*Refugios cercanos*\n\nSelecciona una opción:"
@@ -705,13 +809,17 @@ HANDLER_MAP = {
     "btn:buscar:foto": handle_btn_buscar_foto,
     "btn:registrar:desaparecido": handle_btn_registrar_desaparecido,
     "btn:registrar:encontrado": handle_btn_registrar_encontrado,
-    "btn:refugios:ciudad": handle_btn_refugios_ciudad,
-    "btn:refugios:mapa": handle_btn_refugios_mapa,
+    "btn:refugios:ciudades": handle_refugios_ciudades,
+    "btn:refugios:ciudades:page": handle_refugios_ciudades,
+    "btn:refugios:ciudad:*": handle_refugios_ciudad_item,
     "btn:emergencia:medica": handle_btn_emergencia_medica,
     "btn:emergencia:policial": handle_btn_emergencia_policial,
     "btn:emergencia:bomberos": handle_btn_emergencia_bomberos,
     "btn:ayuda:como_usar": handle_btn_ayuda_como_usar,
     "btn:ayuda:privacidad": handle_btn_ayuda_privacidad,
     "btn:ayuda:contacto": handle_btn_ayuda_contacto,
+    "btn:search:more": handle_search_nav,
+    "btn:search:new": handle_search_nav,
+    "btn:search:menu": handle_search_nav,
     "btn:menu": handle_menu,
 }
