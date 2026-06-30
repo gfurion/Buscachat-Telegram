@@ -222,12 +222,18 @@ railway logs                 # ver logs en tiempo real
 - `_verify_telegram_secret()` loggea ERROR si el secret es "change-me".
 - HMAC: usar `hmac.compare_digest` (protegido contra timing attacks).
 
+## Seguridad — Fase 2 implementada (2026-06-30)
+
+- **Rate limiting:** 30 requests/minuto por chat_id via `TTLCache`. Si excede, retorna 429.
+- **Límite de caracteres:** nombre ≤ 200, ubicación ≤ 300. Mensaje de error claro si excede.
+- **Validación MIME en fotos:** solo `image/jpeg`, `image/png`, `image/webp`. Máximo 10MB. Rechaza con error si no coincide.
+- **Markdown en APIs externas:** `formatear_resultado()` en `people_search.py` escapa todos los campos con `escape_md()`. `_format_search_page()` escapa `query`.
+- **Pinning de dependencias:** `requirements.txt` usa `==` con versiones probadas, no `>=`.
+- **`escape_md` movido a `services/normalizer.py`:** usado por `zavu_state.py`, `people_search.py`, `zavu_handlers.py`. No duplicar.
+
 ## Pendiente
 
 - ~~Reconocimiento facial~~ → embedding extraído pero **no almacenado** en DB. Falta pasar `persona_id` a `FaceMatcher.store_embedding()`
 - Búsqueda por foto funcional (FR-API ReportaVNZLA, requiere API key)
 - Migración SQLite → PostgreSQL (proyecto separado)
 - Almacenamiento persistente de fotos (S3/Railway Volume)
-- **Rate limiting** (Fase 2 seguridad)
-- **Validación de tipo MIME en subida de fotos** (Fase 2 seguridad)
-- **Límite máximo de caracteres en nombres/ubicaciones** (Fase 2 seguridad)
