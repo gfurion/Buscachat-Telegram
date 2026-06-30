@@ -96,7 +96,10 @@ async def telegram_webhook(request: Request):
         message_id = None
 
     if not text and message.get("photo"):
-        text = message["photo"][-1]["file_id"]
+        if ReportStateMachine.get_route(chat_id) == "photo:report":
+            text = message["photo"][-1]["file_id"]
+        else:
+            text = ""
 
     logger.info(f"Telegram update: chat_id={chat_id} text={text[:50]}")
 
@@ -112,6 +115,9 @@ async def telegram_webhook(request: Request):
             if active_route:
                 if active_route == "photo:report" and not message.get("photo"):
                     handler = HANDLER_MAP.get("reportar:step:text")
+                elif message.get("photo"):
+                    await send_text_async(chat_id, "No esperaba una foto ahora. Seguí las instrucciones del asistente.")
+                    handler = None
                 else:
                     handler = HANDLER_MAP.get(active_route)
                 if handler:

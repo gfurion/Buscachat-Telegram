@@ -16,6 +16,12 @@ FOTO = "reportar:step:foto"
 CONFIRMAR = "reportar:step:confirmar"
 
 
+def _escape_md(text: str) -> str:
+    if not text:
+        return text
+    return text.replace("\\", "\\\\").replace("_", "\\_").replace("*", "\\*").replace("`", "\\`")
+
+
 class ReportStateMachine:
     _states: dict[str, dict] = {}
 
@@ -104,7 +110,7 @@ class ReportStateMachine:
             return "El nombre debe tener al menos 2 caracteres. Proba de nuevo:"
         state["nombre"] = text
         state["step"] = CEDULA
-        return f"Nombre: *{text}*\n\nCual es el numero de cedula?\nEscribi /skip si no sabes."
+        return f"Nombre: *{_escape_md(text)}*\n\nCual es el numero de cedula?\nEscribi /skip si no sabes."
 
     @classmethod
     def _step_cedula(cls, state: dict, text: str) -> Optional[str]:
@@ -178,7 +184,7 @@ class ReportStateMachine:
         return (
             f"*Reporte guardado correctamente*\n\n"
             f"ID: #{persona_id}\n"
-            f"Nombre: {persona.nombre}\n"
+            f"Nombre: {_escape_md(persona.nombre)}\n"
             f"Tipo: {tipo_text}\n\n"
             "Escribi /start para volver al menu."
         )
@@ -189,12 +195,15 @@ class ReportStateMachine:
         tipo_text = "desaparecido/a" if tipo_str == "desaparecido" else "encontrado/a"
         foto_status = "✅ Adjuntada" if state.get("foto_file_id") else "❌ No adjuntada"
         logger.info(f"Build summary: tipo_str={tipo_str} tipo_text={tipo_text}")
+        nombre = _escape_md(state.get("nombre", "-") or "-")
+        ubicacion = _escape_md(state.get("ubicacion") or "No informada")
+        cedula = state.get("cedula") or "No informada"
         return (
             f"*Resumen del reporte*\n\n"
             f"Tipo: *{tipo_text}*\n"
-            f"Nombre: *{state.get('nombre', '-')}*\n"
-            f"Cedula: {state.get('cedula') or 'No informada'}\n"
-            f"Ubicacion: {state.get('ubicacion') or 'No informada'}\n"
+            f"Nombre: *{nombre}*\n"
+            f"Cedula: {cedula}\n"
+            f"Ubicacion: {ubicacion}\n"
             f"Foto: {foto_status}\n\n"
             "Escribi *Confirmar* para guardar o *Cancelar* para descartar."
         )

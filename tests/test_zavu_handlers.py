@@ -5,7 +5,10 @@ from unittest.mock import AsyncMock, patch, MagicMock
 @pytest.fixture(autouse=True)
 def reset_state():
     from zavu_state import ReportStateMachine
+    from zavu_handlers import _registrar_waiting, _refugios_waiting
     ReportStateMachine._states = {}
+    _registrar_waiting.clear()
+    _refugios_waiting.clear()
     yield
 
 

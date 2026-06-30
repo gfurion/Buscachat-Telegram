@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import httpx
 
 from cachetools import TTLCache
 from telegram_client import send_text, send_image, send_menu_with_buttons, edit_message_text, edit_message_reply_markup, get_bot
@@ -182,16 +183,21 @@ async def handle_free_text(chat_id: str, text: str = "") -> None:
         await _buscar_refugios(chat_id, query)
         return
 
-    if _registrar_waiting.pop(chat_id, None):
+    if _registrar_waiting.get(chat_id):
         if query.lower() in ("desaparecido", "encontrado"):
+            _registrar_waiting.pop(chat_id, None)
             tipo = query.lower()
             prompt = ReportStateMachine.start(chat_id, tipo)
             await send_text_async(chat_id, prompt)
             return
         elif query.lower() in ("desaparecida", "encontrada"):
+            _registrar_waiting.pop(chat_id, None)
             tipo = query.lower().rstrip("a")
             prompt = ReportStateMachine.start(chat_id, tipo)
             await send_text_async(chat_id, prompt)
+            return
+        else:
+            await send_text_async(chat_id, "Por favor seleccioná **Desaparecido** o **Encontrado** usando los botones de abajo.")
             return
 
     await _realizar_busqueda(chat_id, query)
@@ -206,7 +212,14 @@ async def handle_photo_report(chat_id: str, text: str = "") -> None:
     try:
         bot = get_bot()
         file = await bot.get_file(file_id)
-        file_bytes = await file.download_as_bytearray()
+
+        if not file.file_path:
+            raise RuntimeError("No file_path available for this file")
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.get(file.file_path)
+            resp.raise_for_status()
+            file_bytes = resp.content
 
         filename = f"{chat_id}_{int(time.time())}.jpg"
         filepath = Config.FOTOS_DIR / filename
