@@ -302,7 +302,7 @@ async def _realizar_busqueda(chat_id: str, query: str) -> None:
     await send_menu_with_buttons_async(chat_id, "¿Qué querés hacer?", buttons)
 
 
-async def handle_search_more(chat_id: str, text: str = "") -> None:
+async def handle_search_more(chat_id: str, text: str = "", message_id: int | None = None) -> None:
     state = _search_results_state.get(chat_id)
 
     if not state:
@@ -330,7 +330,7 @@ async def handle_search_more(chat_id: str, text: str = "") -> None:
     await send_menu_with_buttons_async(chat_id, "¿Qué querés hacer?", buttons)
 
 
-async def handle_search_new(chat_id: str, text: str = "") -> None:
+async def handle_search_new(chat_id: str, text: str = "", message_id: int | None = None) -> None:
     clear_search_state(chat_id)
     await send_text_async(
         chat_id,
@@ -338,19 +338,19 @@ async def handle_search_new(chat_id: str, text: str = "") -> None:
     )
 
 
-async def handle_search_menu(chat_id: str, text: str = "") -> None:
+async def handle_search_menu(chat_id: str, text: str = "", message_id: int | None = None) -> None:
     clear_search_state(chat_id)
     await send_text_async(chat_id, MENU_TEXT)
 
 
-async def handle_search_nav(chat_id: str, text: str = "") -> None:
+async def handle_search_nav(chat_id: str, text: str = "", message_id: int | None = None) -> None:
     action = text.split(":")[-1] if ":" in text else ""
     if action == "more":
-        await handle_search_more(chat_id, "")
+        await handle_search_more(chat_id, "", message_id)
     elif action == "new":
-        await handle_search_new(chat_id, "")
+        await handle_search_new(chat_id, "", message_id)
     elif action == "menu":
-        await handle_search_menu(chat_id, "")
+        await handle_search_menu(chat_id, "", message_id)
 
 
 def _build_search_nav_buttons(chat_id: str) -> list[list[dict]]:
