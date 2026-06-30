@@ -175,9 +175,10 @@ class TestRegistrarSubOptions:
             mock_send.assert_called_once()
             call_args = mock_send.call_args
             buttons = call_args[0][2]
-            assert len(buttons) == 2
+            assert len(buttons) == 3
             assert buttons[0][0]["callback_data"] == "btn:registrar:desaparecido"
             assert buttons[1][0]["callback_data"] == "btn:registrar:encontrado"
+            assert buttons[2][0]["callback_data"] == "btn:menu"
 
     @pytest.mark.asyncio
     async def test_handle_menu_registrar_edits_when_message_id(self):
@@ -313,10 +314,40 @@ class TestHandlerMapInlineButtons:
             "btn:registrar:desaparecido", "btn:registrar:encontrado",
             "btn:refugios:ciudad", "btn:refugios:mapa",
             "btn:emergencia:medica", "btn:emergencia:policial", "btn:emergencia:bomberos",
-            "btn:ayuda:como_usar", "btn:ayuda:privacidad", "btn:ayuda:contacto"
+            "btn:ayuda:como_usar", "btn:ayuda:privacidad", "btn:ayuda:contacto",
+            "btn:menu"
         ]
         for key in expected_keys:
             assert key in HANDLER_MAP, f"Key {key} not found in HANDLER_MAP"
+
+
+class TestVolverAlMenu:
+    def _check_volver(self, handler_name):
+        from zavu_handlers import HANDLER_MAP
+        handler = HANDLER_MAP[handler_name]
+        import inspect
+        source = inspect.getsource(handler)
+        assert "🔙 Volver al menú" in source, f"{handler_name} missing Volver button"
+        assert "btn:menu" in source, f"{handler_name} missing btn:menu callback"
+
+    def test_buscar_submenu_has_volver(self):
+        self._check_volver("btn:1")
+
+    def test_registrar_submenu_has_volver(self):
+        self._check_volver("btn:2")
+
+    def test_refugios_submenu_has_volver(self):
+        self._check_volver("btn:3")
+
+    def test_emergencia_submenu_has_volver(self):
+        self._check_volver("btn:4")
+
+    def test_ayuda_submenu_has_volver(self):
+        self._check_volver("btn:5")
+
+    def test_btn_menu_routes_to_handle_menu(self):
+        from zavu_handlers import HANDLER_MAP, handle_menu
+        assert HANDLER_MAP["btn:menu"] is handle_menu
 
 
 class TestWebhookBtnRouting:

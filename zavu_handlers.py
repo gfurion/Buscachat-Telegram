@@ -33,13 +33,7 @@ MENU_TEXT = (
     "🔍 *BuscaChat — Reunificacion Familiar*\n\n"
     "Asistente para buscar y reportar personas\n"
     "tras el terremoto en Venezuela 🇻🇪\n\n"
-    "*¿Que queres hacer?*\n\n"
-    "1️⃣ *Buscar persona* — por nombre o cedula\n"
-    "2️⃣ *Registrar persona* — desaparecida o encontrada\n"
-    "3️⃣ *Refugios cercanos* — centros de ayuda\n"
-    "4️⃣ *Telefonos de emergencia*\n"
-    "5️⃣ *Ayuda* — como funciona el bot\n\n"
-    "Escribi el numero:"
+    "Elegí una opción del menú:"
 )
 
 REGISTRAR_TEXT = (
@@ -130,6 +124,7 @@ async def handle_menu_registrar(chat_id: str, text: str = "", message_id: int | 
     sub_buttons = [
         [{"text": "❌ Desaparecido", "callback_data": "btn:registrar:desaparecido"}],
         [{"text": "✅ Encontrado", "callback_data": "btn:registrar:encontrado"}],
+        [{"text": "🔙 Volver al menú", "callback_data": "btn:menu"}],
     ]
     response = "*Registrar persona*\n\n¿Qué tipo de reporte querés hacer?"
     if message_id:
@@ -459,6 +454,7 @@ async def handle_btn_buscar(chat_id: str, text: str = "", message_id: int | None
         [{"text": "🔍 Buscar por nombre", "callback_data": "btn:buscar:nombre"}],
         [{"text": "🆔 Buscar por cédula", "callback_data": "btn:buscar:cedula"}],
         [{"text": "📸 Buscar por foto", "callback_data": "btn:buscar:foto"}],
+        [{"text": "🔙 Volver al menú", "callback_data": "btn:menu"}],
     ]
     response = "*Buscar persona*\n\n¿Cómo querés realizar la búsqueda?"
     if message_id:
@@ -472,6 +468,7 @@ async def handle_btn_refugios(chat_id: str, text: str = "", message_id: int | No
     sub_buttons = [
         [{"text": "🏙️ Refugios por ciudad", "callback_data": "btn:refugios:ciudad"}],
         [{"text": "🗺️ Ver mapa de refugios", "callback_data": "btn:refugios:mapa"}],
+        [{"text": "🔙 Volver al menú", "callback_data": "btn:menu"}],
     ]
     response = "*Refugios cercanos*\n\nSelecciona una opción:"
     if message_id:
@@ -486,6 +483,7 @@ async def handle_btn_emergencia(chat_id: str, text: str = "", message_id: int | 
         [{"text": "🏥 Emergencia Médica", "callback_data": "btn:emergencia:medica"}],
         [{"text": "🚔 Emergencia Policial", "callback_data": "btn:emergencia:policial"}],
         [{"text": "🚒 Bomberos", "callback_data": "btn:emergencia:bomberos"}],
+        [{"text": "🔙 Volver al menú", "callback_data": "btn:menu"}],
     ]
     response = "*Teléfonos de emergencia*\n\nSelecciona la categoría:"
     if message_id:
@@ -499,6 +497,7 @@ async def handle_btn_ayuda(chat_id: str, text: str = "", message_id: int | None 
         [{"text": "❓ Cómo usar el bot", "callback_data": "btn:ayuda:como_usar"}],
         [{"text": "🔒 Políticas de privacidad", "callback_data": "btn:ayuda:privacidad"}],
         [{"text": "📞 Soporte / Contacto", "callback_data": "btn:ayuda:contacto"}],
+        [{"text": "🔙 Volver al menú", "callback_data": "btn:menu"}],
     ]
     response = "*Ayuda y Soporte*\n\n¿En qué podemos ayudarte?"
     if message_id:
@@ -586,4 +585,5 @@ HANDLER_MAP = {
     "btn:ayuda:como_usar": handle_btn_ayuda_como_usar,
     "btn:ayuda:privacidad": handle_btn_ayuda_privacidad,
     "btn:ayuda:contacto": handle_btn_ayuda_contacto,
+    "btn:menu": handle_menu,
 }
