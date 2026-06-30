@@ -9,6 +9,7 @@ load_dotenv()
 class Config:
     TELEGRAM_BOT_TOKEN: str = os.environ.get("TELEGRAM_BOT_TOKEN", "")
     TELEGRAM_WEBHOOK_SECRET: str = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "change-me")
+    TELEGRAM_ENABLED: bool = os.environ.get("TELEGRAM_ENABLED", "false").lower() == "true"
     PUBLIC_BASE_URL: str = os.environ.get("PUBLIC_BASE_URL", "")
     PORT: int = int(os.environ.get("PORT", "8443"))
 

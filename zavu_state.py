@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Optional
 
@@ -18,12 +19,30 @@ class ReportStateMachine:
     _states: dict[str, dict] = {}
 
     @classmethod
+    def _persist(cls, chat_id: str) -> None:
+        state = cls._states.get(chat_id)
+        if state:
+            db.save_conversation_state(chat_id, json.dumps(state))
+        else:
+            db.delete_conversation_state(chat_id)
+
+    @classmethod
+    def _load(cls, chat_id: str) -> Optional[dict]:
+        if chat_id in cls._states:
+            return cls._states[chat_id]
+        data = db.load_conversation_state(chat_id)
+        if data:
+            cls._states[chat_id] = json.loads(data)
+            return cls._states[chat_id]
+        return None
+
+    @classmethod
     def is_active(cls, chat_id: str) -> bool:
-        return chat_id in cls._states
+        return cls._load(chat_id) is not None
 
     @classmethod
     def get_route(cls, chat_id: str) -> Optional[str]:
-        state = cls._states.get(chat_id)
+        state = cls._load(chat_id)
         if not state:
             return None
         return "reportar:step:text"
@@ -40,12 +59,13 @@ class ReportStateMachine:
             "foto_path": None,
             "foto_file_id": None,
         }
+        cls._persist(chat_id)
         tipo_text = "desaparecido/a" if tipo == "desaparecido" else "encontrado/a"
         return f"*Reportar persona {tipo_text}*\n\nCual es el nombre completo de la persona?"
 
     @classmethod
     def handle_text(cls, chat_id: str, text: str) -> Optional[str]:
-        state = cls._states.get(chat_id)
+        state = cls._load(chat_id)
         if not state:
             return None
 
@@ -58,15 +78,20 @@ class ReportStateMachine:
             return None
 
         if step == NOMBRE:
-            return cls._step_nombre(state, text)
+            result = cls._step_nombre(state, text)
         elif step == CEDULA:
-            return cls._step_cedula(state, text)
+            result = cls._step_cedula(state, text)
         elif step == UBICACION:
-            return cls._step_ubicacion(state, text)
+            result = cls._step_ubicacion(state, text)
         elif step == CONFIRMAR:
-            return cls._step_confirmar(chat_id, state, text)
+            result = cls._step_confirmar(chat_id, state, text)
+        else:
+            result = None
 
-        return None
+        if result is not None and chat_id in cls._states:
+            cls._persist(chat_id)
+
+        return result
 
     @classmethod
     def _step_nombre(cls, state: dict, text: str) -> Optional[str]:
@@ -152,4 +177,5 @@ class ReportStateMachine:
     @classmethod
     def cancel(cls, chat_id: str):
         cls._states.pop(chat_id, None)
+        db.delete_conversation_state(chat_id)
         logger.info(f"Report state cancelled for chat_id={chat_id}")

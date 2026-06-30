@@ -9,22 +9,7 @@ def reset_state():
     yield
 
 
-def make_event(text="", message_type="text", button_id=None):
-    event = {
-        "id": "evt_test",
-        "type": "message.inbound",
-        "data": {
-            "messageType": message_type,
-            "text": text,
-            "telegramChatId": "123456",
-            "from": "123456",
-            "channel": "telegram",
-            "content": {},
-        },
-    }
-    if button_id:
-        event["data"]["content"]["interactiveReply"] = {"id": button_id}
-    return event
+CHAT_ID = "123456"
 
 
 class FakePeopleSearch:
@@ -46,29 +31,29 @@ class TestZavuHandlers:
     def test_handle_start_cancels_state(self, monkeypatch):
         monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: None)
         from zavu_state import ReportStateMachine
-        ReportStateMachine.start("123456", "desaparecido")
-        assert ReportStateMachine.is_active("123456")
+        ReportStateMachine.start(CHAT_ID, "desaparecido")
+        assert ReportStateMachine.is_active(CHAT_ID)
 
         import asyncio
         from zavu_handlers import handle_start
-        asyncio.run(handle_start(make_event(text="/start")))
-        assert not ReportStateMachine.is_active("123456")
+        asyncio.run(handle_start(CHAT_ID, "/start"))
+        assert not ReportStateMachine.is_active(CHAT_ID)
 
     def test_handle_menu_registrar_sets_waiting(self, monkeypatch):
         monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: None)
         import asyncio
         from zavu_handlers import handle_menu_registrar, _registrar_waiting
 
-        asyncio.run(handle_menu_registrar(make_event(text="2")))
-        assert _registrar_waiting.get("123456") is True
+        asyncio.run(handle_menu_registrar(CHAT_ID, "2"))
+        assert _registrar_waiting.get(CHAT_ID) is True
 
     def test_handle_refugios_sets_waiting(self, monkeypatch):
         monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: None)
         import asyncio
         from zavu_handlers import handle_refugios, _refugios_waiting
 
-        asyncio.run(handle_refugios(make_event(text="/refugios")))
-        assert _refugios_waiting.get("123456") is True
+        asyncio.run(handle_refugios(CHAT_ID, "/refugios"))
+        assert _refugios_waiting.get(CHAT_ID) is True
 
     def test_handle_refugios_with_city(self, monkeypatch):
         monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: None)
@@ -84,7 +69,7 @@ class TestZavuHandlers:
 
         import asyncio
         from zavu_handlers import handle_refugios
-        asyncio.run(handle_refugios(make_event(text="/refugios Caracas")))
+        asyncio.run(handle_refugios(CHAT_ID, "/refugios Caracas"))
 
         assert any("Caracas" in s for s in sent)
 
@@ -94,7 +79,7 @@ class TestZavuHandlers:
 
         import asyncio
         from zavu_handlers import handle_free_text
-        asyncio.run(handle_free_text(make_event(text="M")))
+        asyncio.run(handle_free_text(CHAT_ID, "M"))
 
         assert any("2 caracteres" in s for s in sent)
 
@@ -105,7 +90,7 @@ class TestZavuHandlers:
 
         import asyncio
         from zavu_handlers import handle_free_text
-        asyncio.run(handle_free_text(make_event(text="Test")))
+        asyncio.run(handle_free_text(CHAT_ID, "Test"))
 
         assert any("Buscando" in s for s in sent)
 
@@ -116,7 +101,7 @@ class TestZavuHandlers:
 
         import asyncio
         from zavu_handlers import handle_buscar
-        asyncio.run(handle_buscar(make_event(text="/buscar Maria")))
+        asyncio.run(handle_buscar(CHAT_ID, "/buscar Maria"))
 
         assert any("Buscando" in s for s in sent)
 
@@ -125,7 +110,7 @@ class TestZavuHandlers:
         monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: sent.append(text))
         import asyncio
         from zavu_handlers import handle_buscar
-        asyncio.run(handle_buscar(make_event(text="/buscar")))
+        asyncio.run(handle_buscar(CHAT_ID, "/buscar"))
         assert any("nombre o cedula" in s for s in sent)
 
     def test_handle_photo_disabled(self, monkeypatch):
@@ -133,7 +118,7 @@ class TestZavuHandlers:
         monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: sent.append(text))
         import asyncio
         from zavu_handlers import handle_photo
-        asyncio.run(handle_photo(make_event(message_type="image")))
+        asyncio.run(handle_photo(CHAT_ID, ""))
         assert any("no esta disponible" in s for s in sent)
 
     def test_handle_info(self, monkeypatch):
@@ -141,7 +126,7 @@ class TestZavuHandlers:
         monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: sent.append(text))
         import asyncio
         from zavu_handlers import handle_info
-        asyncio.run(handle_info(make_event(text="/info")))
+        asyncio.run(handle_info(CHAT_ID, "/info"))
         assert any("Fuentes" in s for s in sent)
 
     def test_handle_registrar_cmd_desaparecido(self, monkeypatch):
@@ -150,9 +135,9 @@ class TestZavuHandlers:
 
         import asyncio
         from zavu_handlers import handle_registrar_cmd
-        asyncio.run(handle_registrar_cmd(make_event(text="/registrar desaparecido")))
+        asyncio.run(handle_registrar_cmd(CHAT_ID, "/registrar desaparecido"))
 
-        assert ReportStateMachine.is_active("123456")
+        assert ReportStateMachine.is_active(CHAT_ID)
 
     def test_handle_registrar_cmd_encontrado(self, monkeypatch):
         monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: None)
@@ -160,28 +145,28 @@ class TestZavuHandlers:
 
         import asyncio
         from zavu_handlers import handle_registrar_cmd
-        asyncio.run(handle_registrar_cmd(make_event(text="/registrar encontrado")))
+        asyncio.run(handle_registrar_cmd(CHAT_ID, "/registrar encontrado"))
 
-        assert ReportStateMachine.is_active("123456")
+        assert ReportStateMachine.is_active(CHAT_ID)
 
     def test_handle_reportar_text_continues_flow(self, monkeypatch):
         monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: None)
         from zavu_state import ReportStateMachine
-        ReportStateMachine.start("123456", "desaparecido")
+        ReportStateMachine.start(CHAT_ID, "desaparecido")
 
         import asyncio
         from zavu_handlers import handle_reportar_text
-        asyncio.run(handle_reportar_text(make_event(text="Maria Perez")))
+        asyncio.run(handle_reportar_text(CHAT_ID, "Maria Perez"))
 
-        assert ReportStateMachine.is_active("123456")
+        assert ReportStateMachine.is_active(CHAT_ID)
 
     def test_handle_reportar_text_cancel(self, monkeypatch):
         monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: None)
         from zavu_state import ReportStateMachine
-        ReportStateMachine.start("123456", "desaparecido")
+        ReportStateMachine.start(CHAT_ID, "desaparecido")
 
         import asyncio
         from zavu_handlers import handle_reportar_text
-        asyncio.run(handle_reportar_text(make_event(text="/cancel")))
+        asyncio.run(handle_reportar_text(CHAT_ID, "/cancel"))
 
-        assert not ReportStateMachine.is_active("123456")
+        assert not ReportStateMachine.is_active(CHAT_ID)

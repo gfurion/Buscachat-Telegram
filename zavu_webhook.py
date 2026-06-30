@@ -84,23 +84,26 @@ async def webhook(request: Request):
 
     try:
         chat_id = get_chat_id(event)
+        data = event.get("data", {})
+        text = data.get("text", "").strip()
+
         active_route = ReportStateMachine.get_route(chat_id)
 
         if active_route:
             handler = HANDLER_MAP.get("reportar:step:text")
 
             if handler:
-                await handler(event)
+                await handler(chat_id, text)
                 logger.info(f"Event {event_id}: state machine step {active_route} (chat_id={chat_id})")
             else:
                 logger.warning(f"No handler for state route: {active_route}")
         else:
-            handler_name = get_search_results_route(chat_id, event) or route_event(event)
+            handler_name = get_search_results_route(chat_id, text) or route_event(event)
 
             if handler_name:
                 handler = HANDLER_MAP.get(handler_name)
                 if handler:
-                    await handler(event)
+                    await handler(chat_id, text)
                     logger.info(f"Event {event_id} handled by {handler_name} (chat_id={chat_id})")
                 else:
                     logger.warning(f"No handler for route: {handler_name}")

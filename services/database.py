@@ -48,6 +48,13 @@ class Database:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_personas_cedula ON personas(cedula)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_personas_tipo ON personas(tipo)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_embeddings_persona ON embeddings(persona_id)")
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS conversation_state (
+                    chat_id TEXT PRIMARY KEY,
+                    state_data TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
             conn.commit()
             logger.info(f"Database initialized at {self.db_path}")
 
@@ -207,6 +214,42 @@ class Database:
             reporter_chat_id=row["reporter_chat_id"],
             created_at=datetime.fromisoformat(row["created_at"]),
         )
+
+    def save_conversation_state(self, chat_id: str, state_data: str) -> None:
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute(
+                    """INSERT OR REPLACE INTO conversation_state
+                       (chat_id, state_data, updated_at)
+                       VALUES (?, ?, ?)""",
+                    (chat_id, state_data, datetime.now(UTC).isoformat()),
+                )
+                conn.commit()
+        except sqlite3.Error as e:
+            logger.error(f"Database error saving conversation state: {e}")
+
+    def load_conversation_state(self, chat_id: str) -> Optional[str]:
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                row = conn.execute(
+                    "SELECT state_data FROM conversation_state WHERE chat_id = ?",
+                    (chat_id,),
+                ).fetchone()
+                return row[0] if row else None
+        except sqlite3.Error as e:
+            logger.error(f"Database error loading conversation state: {e}")
+            return None
+
+    def delete_conversation_state(self, chat_id: str) -> None:
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute(
+                    "DELETE FROM conversation_state WHERE chat_id = ?",
+                    (chat_id,),
+                )
+                conn.commit()
+        except sqlite3.Error as e:
+            logger.error(f"Database error deleting conversation state: {e}")
 
 
 _db_instance: Optional[Database] = None

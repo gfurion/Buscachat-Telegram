@@ -3,7 +3,6 @@ import logging
 
 from cachetools import TTLCache
 from zavu_client import send_text, send_image
-from zavu_router import get_chat_id
 from services.database import get_db
 from services.face_matching import FaceMatcher
 from services.acopiove_api import AcopioVEAPI
@@ -79,15 +78,11 @@ def clear_search_state(chat_id: str) -> None:
     _search_results_state.pop(chat_id, None)
 
 
-def get_search_results_route(chat_id: str, event: dict) -> str | None:
+def get_search_results_route(chat_id: str, text: str) -> str | None:
     if chat_id not in _search_results_state:
         return None
 
-    data = event.get("data", {})
-    if data.get("messageType") != "text":
-        return None
-
-    text = data.get("text", "").strip()
+    text = text.strip()
     if text == "1":
         return "search:more"
     if text == "2":
@@ -99,42 +94,35 @@ def get_search_results_route(chat_id: str, event: dict) -> str | None:
     return None
 
 
-async def handle_start(event: dict) -> None:
-    chat_id = get_chat_id(event)
+async def handle_start(chat_id: str, text: str = "") -> None:
     ReportStateMachine.cancel(chat_id)
     clear_search_state(chat_id)
     await send_text_async(chat_id, MENU_TEXT)
 
 
-async def handle_menu(event: dict) -> None:
-    chat_id = get_chat_id(event)
+async def handle_menu(chat_id: str, text: str = "") -> None:
     clear_search_state(chat_id)
     await send_text_async(chat_id, MENU_TEXT)
 
 
-async def handle_menu_registrar(event: dict) -> None:
-    chat_id = get_chat_id(event)
+async def handle_menu_registrar(chat_id: str, text: str = "") -> None:
     clear_search_state(chat_id)
     _registrar_waiting[chat_id] = True
     await send_text_async(chat_id, REGISTRAR_TEXT)
 
 
-async def handle_ayuda(event: dict) -> None:
-    chat_id = get_chat_id(event)
+async def handle_ayuda(chat_id: str, text: str = "") -> None:
     clear_search_state(chat_id)
     await send_text_async(chat_id, AYUDA_TEXT)
 
 
-async def handle_info(event: dict) -> None:
-    chat_id = get_chat_id(event)
+async def handle_info(chat_id: str, text: str = "") -> None:
     clear_search_state(chat_id)
     await send_text_async(chat_id, INFO_TEXT)
 
 
-async def handle_buscar(event: dict) -> None:
-    chat_id = get_chat_id(event)
+async def handle_buscar(chat_id: str, text: str = "") -> None:
     clear_search_state(chat_id)
-    text = event["data"].get("text", "").strip()
     parts = text.split(maxsplit=1)
     query = parts[1] if len(parts) > 1 else ""
 
@@ -150,8 +138,7 @@ async def handle_buscar(event: dict) -> None:
     await _realizar_busqueda(chat_id, query)
 
 
-async def handle_buscar_button(event: dict) -> None:
-    chat_id = get_chat_id(event)
+async def handle_buscar_button(chat_id: str, text: str = "") -> None:
     clear_search_state(chat_id)
     await send_text_async(
         chat_id,
@@ -159,9 +146,8 @@ async def handle_buscar_button(event: dict) -> None:
     )
 
 
-async def handle_free_text(event: dict) -> None:
-    chat_id = get_chat_id(event)
-    query = event["data"].get("text", "").strip()
+async def handle_free_text(chat_id: str, text: str = "") -> None:
+    query = text.strip()
 
     if len(query) < 2:
         await send_text_async(chat_id, "Escribi al menos 2 caracteres para buscar.")
@@ -186,9 +172,8 @@ async def handle_free_text(event: dict) -> None:
     await _realizar_busqueda(chat_id, query)
 
 
-async def handle_photo(event: dict) -> None:
-    chat_id = get_chat_id(event)
-    logger.info(f"PHOTO EVENT (free search): data keys={list(event.get('data', {}).keys())}")
+async def handle_photo(chat_id: str, text: str = "") -> None:
+    logger.info(f"PHOTO EVENT (free search): chat_id={chat_id}")
     await send_text_async(
         chat_id,
         "La busqueda por foto no esta disponible por ahora.\n\n"
@@ -222,8 +207,7 @@ async def _realizar_busqueda(chat_id: str, query: str) -> None:
         await send_image_async(chat_id, foto_url)
 
 
-async def handle_search_more(event: dict) -> None:
-    chat_id = get_chat_id(event)
+async def handle_search_more(chat_id: str, text: str = "") -> None:
     state = _search_results_state.get(chat_id)
 
     if not state:
@@ -248,8 +232,7 @@ async def handle_search_more(event: dict) -> None:
         await send_image_async(chat_id, foto_url)
 
 
-async def handle_search_new(event: dict) -> None:
-    chat_id = get_chat_id(event)
+async def handle_search_new(chat_id: str, text: str = "") -> None:
     clear_search_state(chat_id)
     await send_text_async(
         chat_id,
@@ -257,8 +240,7 @@ async def handle_search_new(event: dict) -> None:
     )
 
 
-async def handle_search_menu(event: dict) -> None:
-    chat_id = get_chat_id(event)
+async def handle_search_menu(chat_id: str, text: str = "") -> None:
     clear_search_state(chat_id)
     await send_text_async(chat_id, MENU_TEXT)
 
@@ -290,10 +272,8 @@ def _format_search_page(query: str, results: list, start_index: int) -> tuple[st
     return response, photo_urls
 
 
-async def handle_registrar_cmd(event: dict) -> None:
-    chat_id = get_chat_id(event)
+async def handle_registrar_cmd(chat_id: str, text: str = "") -> None:
     clear_search_state(chat_id)
-    text = event["data"].get("text", "").strip()
     _registrar_waiting.pop(chat_id, None)
 
     if "encontrado" in text:
@@ -306,9 +286,8 @@ async def handle_registrar_cmd(event: dict) -> None:
     await send_text_async(chat_id, prompt)
 
 
-async def handle_reportar_text(event: dict) -> None:
-    chat_id = get_chat_id(event)
-    text = event["data"].get("text", "").strip()
+async def handle_reportar_text(chat_id: str, text: str = "") -> None:
+    text = text.strip()
 
     if not text:
         await send_text_async(chat_id, "Escribi una respuesta valida.")
@@ -324,8 +303,7 @@ async def handle_reportar_text(event: dict) -> None:
     await send_text_async(chat_id, response)
 
 
-async def handle_emergencia(event: dict) -> None:
-    chat_id = get_chat_id(event)
+async def handle_emergencia(chat_id: str, text: str = "") -> None:
     clear_search_state(chat_id)
     await send_text_async(chat_id, "Buscando telefonos de emergencia...")
 
@@ -349,10 +327,8 @@ async def handle_emergencia(event: dict) -> None:
     await send_text_async(chat_id, respuesta)
 
 
-async def handle_refugios(event: dict) -> None:
-    chat_id = get_chat_id(event)
+async def handle_refugios(chat_id: str, text: str = "") -> None:
     clear_search_state(chat_id)
-    text = event["data"].get("text", "").strip()
     parts = text.split(maxsplit=1)
     ciudad = parts[1] if len(parts) > 1 else ""
 

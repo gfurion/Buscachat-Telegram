@@ -21,19 +21,6 @@ class FakePeopleSearch:
         return f"*{result.nombre}*\nFuente: {result.fuente}"
 
 
-def make_event(text, chat_id="123"):
-    return {
-        "type": "message.inbound",
-        "data": {
-            "messageType": "text",
-            "text": text,
-            "telegramChatId": chat_id,
-            "from": chat_id,
-            "content": {},
-        },
-    }
-
-
 def make_results(total):
     return [
         PeopleSearchResult(
@@ -100,7 +87,7 @@ async def test_search_more_shows_next_page(monkeypatch):
 
     monkeypatch.setattr(zavu_handlers, "send_text_async", fake_send_text)
 
-    await zavu_handlers.handle_search_more(make_event("1"))
+    await zavu_handlers.handle_search_more("123", "1")
 
     assert "6. *Persona 6*" in messages[0][1]
     assert "7. *Persona 7*" in messages[0][1]
@@ -122,7 +109,7 @@ async def test_search_new_clears_state_and_prompts(monkeypatch):
 
     monkeypatch.setattr(zavu_handlers, "send_text_async", fake_send_text)
 
-    await zavu_handlers.handle_search_new(make_event("2"))
+    await zavu_handlers.handle_search_new("123", "2")
 
     assert "123" not in zavu_handlers._search_results_state
     assert "nombre o cedula" in messages[0][1]
@@ -142,7 +129,7 @@ async def test_search_menu_clears_state_and_shows_menu(monkeypatch):
 
     monkeypatch.setattr(zavu_handlers, "send_text_async", fake_send_text)
 
-    await zavu_handlers.handle_search_menu(make_event("3"))
+    await zavu_handlers.handle_search_menu("123", "3")
 
     assert "123" not in zavu_handlers._search_results_state
     assert "BuscaChat" in messages[0][1]
@@ -155,9 +142,9 @@ def test_search_results_route_has_priority_for_numeric_menu():
         "next_index": 5,
     }
 
-    assert zavu_handlers.get_search_results_route("123", make_event("1")) == "search:more"
-    assert zavu_handlers.get_search_results_route("123", make_event("2")) == "search:new"
-    assert zavu_handlers.get_search_results_route("123", make_event("3")) == "search:menu"
+    assert zavu_handlers.get_search_results_route("123", "1") == "search:more"
+    assert zavu_handlers.get_search_results_route("123", "2") == "search:new"
+    assert zavu_handlers.get_search_results_route("123", "3") == "search:menu"
 
 
 @pytest.mark.asyncio
@@ -174,7 +161,7 @@ async def test_start_clears_search_state(monkeypatch):
 
     monkeypatch.setattr(zavu_handlers, "send_text_async", fake_send_text)
 
-    await zavu_handlers.handle_start(make_event("/start"))
+    await zavu_handlers.handle_start("123", "/start")
 
     assert "123" not in zavu_handlers._search_results_state
     assert "BuscaChat" in messages[0][1]
