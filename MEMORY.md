@@ -213,9 +213,21 @@ railway logs --deployment    # ver logs del último deploy
 railway logs                 # ver logs en tiempo real
 ```
 
+## Seguridad — Reglas estrictas
+
+- **NUNCA** hardcodear el token del bot en archivos. Usar `{{TELEGRAM_BOT_TOKEN}}` como placeholder en docs.
+- **NUNCA** commitear `.env` con tokens reales. Verificar `.gitignore`.
+- **Token actual expuesto** en git history (MEMORY.md, AGENTS.md, commits anteriores). **Rotar en BotFather inmediatamente.**
+- `Config.validate()` rechaza `TELEGRAM_WEBHOOK_SECRET="change-me"` cuando `TELEGRAM_ENABLED=true`.
+- `_verify_telegram_secret()` loggea ERROR si el secret es "change-me".
+- HMAC: usar `hmac.compare_digest` (protegido contra timing attacks).
+
 ## Pendiente
 
 - ~~Reconocimiento facial~~ → embedding extraído pero **no almacenado** en DB. Falta pasar `persona_id` a `FaceMatcher.store_embedding()`
 - Búsqueda por foto funcional (FR-API ReportaVNZLA, requiere API key)
 - Migración SQLite → PostgreSQL (proyecto separado)
-- Almacenamiento persistente de fotos (S3/Railway Volume) — hoy se guardan localmente, se pierden al reiniciar contenedor. El `file_id` de Telegram en DB permite re-descargar.
+- Almacenamiento persistente de fotos (S3/Railway Volume)
+- **Rate limiting** (Fase 2 seguridad)
+- **Validación de tipo MIME en subida de fotos** (Fase 2 seguridad)
+- **Límite máximo de caracteres en nombres/ubicaciones** (Fase 2 seguridad)
