@@ -302,3 +302,18 @@ class TestAyudaSubOptions:
             mock_send.return_value = None
             await handle_btn_ayuda_contacto("123456")
             mock_send.assert_called_once()
+
+
+class TestHandlerMapInlineButtons:
+    def test_handler_map_has_all_btn_keys(self):
+        from zavu_handlers import HANDLER_MAP
+        expected_keys = [
+            "btn:1", "btn:2", "btn:3", "btn:4", "btn:5",
+            "btn:buscar:nombre", "btn:buscar:cedula", "btn:buscar:foto",
+            "btn:registrar:desaparecido", "btn:registrar:encontrado",
+            "btn:refugios:ciudad", "btn:refugios:mapa",
+            "btn:emergencia:medica", "btn:emergencia:policial", "btn:emergencia:bomberos",
+            "btn:ayuda:como_usar", "btn:ayuda:privacidad", "btn:ayuda:contacto"
+        ]
+        for key in expected_keys:
+            assert key in HANDLER_MAP, f"Key {key} not found in HANDLER_MAP"

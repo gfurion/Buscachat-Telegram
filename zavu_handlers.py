@@ -453,6 +453,60 @@ async def handle_btn_ayuda_contacto(chat_id: str, text: str = "", message_id: in
     await send_text_async(chat_id, "📞 *Contacto*\n\n📧 @BuscaChatVzla_bot\n🌐 buscachat-telegram-production.up.railway.app")
 
 
+async def handle_btn_buscar(chat_id: str, text: str = "", message_id: int | None = None) -> None:
+    clear_search_state(chat_id)
+    sub_buttons = [
+        [{"text": "🔍 Buscar por nombre", "callback_data": "btn:buscar:nombre"}],
+        [{"text": "🆔 Buscar por cédula", "callback_data": "btn:buscar:cedula"}],
+        [{"text": "📸 Buscar por foto", "callback_data": "btn:buscar:foto"}],
+    ]
+    response = "*Buscar persona*\n\n¿Cómo querés realizar la búsqueda?"
+    if message_id:
+        await edit_menu_async(int(chat_id), message_id, response, sub_buttons)
+    else:
+        await send_menu_with_buttons_async(chat_id, response, sub_buttons)
+
+
+async def handle_btn_refugios(chat_id: str, text: str = "", message_id: int | None = None) -> None:
+    clear_search_state(chat_id)
+    sub_buttons = [
+        [{"text": "🏙️ Refugios por ciudad", "callback_data": "btn:refugios:ciudad"}],
+        [{"text": "🗺️ Ver mapa de refugios", "callback_data": "btn:refugios:mapa"}],
+    ]
+    response = "*Refugios cercanos*\n\nSelecciona una opción:"
+    if message_id:
+        await edit_menu_async(int(chat_id), message_id, response, sub_buttons)
+    else:
+        await send_menu_with_buttons_async(chat_id, response, sub_buttons)
+
+
+async def handle_btn_emergencia(chat_id: str, text: str = "", message_id: int | None = None) -> None:
+    clear_search_state(chat_id)
+    sub_buttons = [
+        [{"text": "🏥 Emergencia Médica", "callback_data": "btn:emergencia:medica"}],
+        [{"text": "🚔 Emergencia Policial", "callback_data": "btn:emergencia:policial"}],
+        [{"text": "🚒 Bomberos", "callback_data": "btn:emergencia:bomberos"}],
+    ]
+    response = "*Teléfonos de emergencia*\n\nSelecciona la categoría:"
+    if message_id:
+        await edit_menu_async(int(chat_id), message_id, response, sub_buttons)
+    else:
+        await send_menu_with_buttons_async(chat_id, response, sub_buttons)
+
+
+async def handle_btn_ayuda(chat_id: str, text: str = "", message_id: int | None = None) -> None:
+    sub_buttons = [
+        [{"text": "❓ Cómo usar el bot", "callback_data": "btn:ayuda:como_usar"}],
+        [{"text": "🔒 Políticas de privacidad", "callback_data": "btn:ayuda:privacidad"}],
+        [{"text": "📞 Soporte / Contacto", "callback_data": "btn:ayuda:contacto"}],
+    ]
+    response = "*Ayuda y Soporte*\n\n¿En qué podemos ayudarte?"
+    if message_id:
+        await edit_menu_async(int(chat_id), message_id, response, sub_buttons)
+    else:
+        await send_menu_with_buttons_async(chat_id, response, sub_buttons)
+
+
 async def send_text_async(chat_id: str, text: str) -> None:
     try:
         await asyncio.to_thread(send_text, chat_id, text)
@@ -513,4 +567,23 @@ HANDLER_MAP = {
     "search:menu": handle_search_menu,
     # State machine handlers
     "reportar:step:text": handle_reportar_text,
+    # Inline button routing
+    "btn:1": handle_btn_buscar,
+    "btn:2": handle_menu_registrar,
+    "btn:3": handle_btn_refugios,
+    "btn:4": handle_btn_emergencia,
+    "btn:5": handle_btn_ayuda,
+    "btn:buscar:nombre": handle_btn_buscar_nombre,
+    "btn:buscar:cedula": handle_btn_buscar_cedula,
+    "btn:buscar:foto": handle_btn_buscar_foto,
+    "btn:registrar:desaparecido": handle_btn_registrar_desaparecido,
+    "btn:registrar:encontrado": handle_btn_registrar_encontrado,
+    "btn:refugios:ciudad": handle_btn_refugios_ciudad,
+    "btn:refugios:mapa": handle_btn_refugios_mapa,
+    "btn:emergencia:medica": handle_btn_emergencia_medica,
+    "btn:emergencia:policial": handle_btn_emergencia_policial,
+    "btn:emergencia:bomberos": handle_btn_emergencia_bomberos,
+    "btn:ayuda:como_usar": handle_btn_ayuda_como_usar,
+    "btn:ayuda:privacidad": handle_btn_ayuda_privacidad,
+    "btn:ayuda:contacto": handle_btn_ayuda_contacto,
 }
