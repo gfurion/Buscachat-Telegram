@@ -53,7 +53,8 @@ buscachat-telegram/
 │   ├── people_search.py       # Agregador 4 fuentes paralelas + dedup + paginación
 │   ├── face_matching.py       # Wrapper facerec.py (ArcFace)
 │   ├── reportavnzla_api.py    # Cliente HTTP → ReportaVNZLA (personas estructuradas)
-│   └── normalizer.py          # Normalización de texto
+│   ├── venezuela_te_busca_api.py  # Cliente HTTP → VenezuelaTeBusca (5ta fuente)
+│   └── normalizer.py          # Normalización de texto + escape_md()
 ├── models/
 │   └── persona.py             # Persona, TipoReporte
 ├── lib/
@@ -105,14 +106,15 @@ uvicorn zavu_webhook:app --host 0.0.0.0 --port 8443
 | ReportaVNZLA | Búsqueda estructurada por nombre/cédula | 15K+ registros | ✅ Producción |
 | found-people-ve-bot | Búsqueda por nombre/cédula | 35K+ registros | ✅ Producción |
 | AcopioVE | Personas, refugios, teléfonos emergencia | Fuentes agregadas | ✅ Producción |
+| **VenezuelaTeBusca** | Búsqueda en venezuelatebusca.com | API pública | ✅ Producción |
 | DB local | Búsqueda en SQLite (reportes registrados) | Datos propios | ✅ Producción |
 | Venezuela Juntos | Reconocimiento facial ArcFace | Código base local | ⚠️ Sin uso activo |
 
-### Búsqueda multi-fuente
+### Búsqueda multi-fuente (5 fuentes)
 
-`PeopleSearchAggregator` consulta las 4 fuentes en paralelo con `asyncio.gather(return_exceptions=True)`:
+`PeopleSearchAggregator` consulta **5 fuentes** en paralelo con `asyncio.gather(return_exceptions=True)`:
 
-1. ReportaVNZLA + found-people-ve-bot + AcopioVE + DB local simultáneamente
+1. ReportaVNZLA + found-people-ve-bot + AcopioVE + **VenezuelaTeBusca** + DB local simultáneamente
 2. Normaliza respuestas a `PeopleSearchResult` unificado
 3. Deduplica por cédula; si no hay cédula, por nombre + ubicación
 4. Muestra resultados paginados de 5 en 5

@@ -237,3 +237,19 @@ railway logs                 # ver logs en tiempo real
 - Búsqueda por foto funcional (FR-API ReportaVNZLA, requiere API key)
 - Migración SQLite → PostgreSQL (proyecto separado)
 - Almacenamiento persistente de fotos (S3/Railway Volume)
+
+## Fuentes de búsqueda (5)
+
+| Fuente | Archivo | Tipo |
+|--------|---------|------|
+| ReportaVNZLA | `services/reportavnzla_api.py` | API HTTP asíncrona |
+| found-people-ve-bot | `services/found_people_api.py` | API HTTP asíncrona |
+| AcopioVE | `services/acopiove_api.py` | API HTTP asíncrona |
+| **VenezuelaTeBusca** | `services/venezuela_te_busca_api.py` | Sync httpx envuelto en `asyncio.to_thread`. Formato flattened JSON |
+| DB local | `services/database.py` | SQLite via `asyncio.to_thread` |
+
+- VenezuelaTeBusca se agregó como 5ta fuente el 2026-06-30
+- No se incluye por defecto en tests (solo si se pasa `venezuela_te_busca=` al constructor)
+- En producción se activa via `zavu_handlers.py`: `PeopleSearchAggregator(venezuela_te_busca=VenezuelaTeBuscaAPI())`
+- `decode_flattened_response()` resuelve el formato flattened JSON de `venezuelatebusca.com/_root.data`
+- Timeout: 20s. Mapea `firstName+lastName` → nombre, `idNumber` → cedula, `lastSeen` → ubicacion, `photoUrl` → foto_path
