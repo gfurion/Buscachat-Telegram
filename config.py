@@ -39,6 +39,8 @@ class Config:
         errors = []
         if not cls.TELEGRAM_BOT_TOKEN:
             errors.append("TELEGRAM_BOT_TOKEN is required")
+        if cls.TELEGRAM_ENABLED and cls.TELEGRAM_WEBHOOK_SECRET in ("", "change-me"):
+            errors.append("TELEGRAM_WEBHOOK_SECRET must be set to a real secret when TELEGRAM_ENABLED=true")
         if not cls.FOUND_PEOPLE_API_URL:
             errors.append("FOUND_PEOPLE_API_URL is required")
         if errors:

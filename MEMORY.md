@@ -12,7 +12,7 @@ Para futuras sesiones: leer este archivo antes de modificar código.
 - **Railway:** https://buscachat-telegram-production.up.railway.app
 - **Webhook:** `POST /webhook/telegram`
 - **Health:** `GET /health`
-- **Token:** `8879759610:AAGnW4BCyfxZS1JuDVXgV5cheuE9ims8mxE`
+- **Token:** `{{TELEGRAM_BOT_TOKEN}}` (NO hardcodear — leer de variable de entorno)
 - **Project ID:** `celebrated-nature / Buscachat-Telegram`
 
 ## Stack
@@ -198,7 +198,7 @@ handle_reportar_text("Confirmar")
 | Variable | Valor en Railway |
 |----------|-----------------|
 | `TELEGRAM_ENABLED` | `true` |
-| `TELEGRAM_BOT_TOKEN` | `8879759610:AAGnW4BCyfxZS1JuDVXgV5cheuE9ims8mxE` |
+| `TELEGRAM_BOT_TOKEN` | `{{TELEGRAM_BOT_TOKEN}}` (definir en Railway, nunca hardcodear) |
 | `TELEGRAM_WEBHOOK_SECRET` | (configurado) |
 | `PUBLIC_BASE_URL` | `https://buscachat-telegram-production.up.railway.app` |
 | `FOUND_PEOPLE_API_URL` | `https://bot-production-ed0b.up.railway.app` |

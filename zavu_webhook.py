@@ -25,7 +25,11 @@ async def health():
 # ---------------------------------------------------------------------------
 
 def _verify_telegram_secret(secret_header: str) -> bool:
-    if not Config.TELEGRAM_WEBHOOK_SECRET or Config.TELEGRAM_WEBHOOK_SECRET == "change-me":
+    if not Config.TELEGRAM_WEBHOOK_SECRET:
+        logger.warning("TELEGRAM_WEBHOOK_SECRET not set — webhook HMAC disabled")
+        return True
+    if Config.TELEGRAM_WEBHOOK_SECRET == "change-me":
+        logger.error("TELEGRAM_WEBHOOK_SECRET is the default 'change-me' — webhook is INSECURE. Set a real secret in Railway.")
         return True
     return hmac.compare_digest(secret_header, Config.TELEGRAM_WEBHOOK_SECRET)
 
