@@ -317,3 +317,12 @@ class TestHandlerMapInlineButtons:
         ]
         for key in expected_keys:
             assert key in HANDLER_MAP, f"Key {key} not found in HANDLER_MAP"
+
+
+class TestWebhookBtnRouting:
+    def test_route_telegram_btn_key_returns_none(self):
+        from zavu_webhook import _route_telegram
+        assert _route_telegram("btn:1") is None
+        assert _route_telegram("btn:registrar:desaparecido") is None
+        assert _route_telegram("btn:buscar:nombre") is None
+        assert _route_telegram("btn:ayuda:como_usar") is None

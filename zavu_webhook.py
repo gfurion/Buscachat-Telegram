@@ -33,6 +33,9 @@ def _verify_telegram_secret(secret_header: str) -> bool:
 def _route_telegram(text: str) -> str | None:
     text = text.strip()
 
+    if text.startswith("btn:"):
+        return None
+
     if text.startswith("/start"):
         return "start"
     if text.startswith("/buscar"):
@@ -85,10 +88,12 @@ async def telegram_webhook(request: Request):
         chat_id = str(cb["message"]["chat"]["id"])
         text = cb.get("data", "")
         callback_query_id = cb["id"]
+        message_id = cb["message"]["message_id"]
     else:
         chat_id = str(message["chat"]["id"])
         text = message.get("text", "")
         callback_query_id = None
+        message_id = None
 
     if not text and message.get("photo"):
         text = ""
@@ -96,25 +101,31 @@ async def telegram_webhook(request: Request):
     logger.info(f"Telegram update: chat_id={chat_id} text={text[:50]}")
 
     try:
-        active_route = ReportStateMachine.get_route(chat_id)
-
-        if active_route:
-            handler = HANDLER_MAP.get("reportar:step:text")
+        if callback_query_id and text.startswith("btn:"):
+            handler = HANDLER_MAP.get(text)
             if handler:
-                await handler(chat_id, text)
-                logger.info(f"Telegram: state machine step for chat_id={chat_id}")
+                await handler(chat_id, text, message_id=message_id)
+                logger.info(f"Telegram: btn route {text} for chat_id={chat_id}")
         else:
-            handler_name = _route_telegram(text) or get_search_results_route(chat_id, text)
+            active_route = ReportStateMachine.get_route(chat_id)
 
-            if handler_name:
-                handler = HANDLER_MAP.get(handler_name)
+            if active_route:
+                handler = HANDLER_MAP.get("reportar:step:text")
                 if handler:
                     await handler(chat_id, text)
-                    logger.info(f"Telegram: {handler_name} for chat_id={chat_id}")
-                else:
-                    logger.warning(f"No handler for route: {handler_name}")
+                    logger.info(f"Telegram: state machine step for chat_id={chat_id}")
             else:
-                logger.info(f"Telegram: no route for chat_id={chat_id} text={text[:30]}")
+                handler_name = _route_telegram(text) or get_search_results_route(chat_id, text)
+
+                if handler_name:
+                    handler = HANDLER_MAP.get(handler_name)
+                    if handler:
+                        await handler(chat_id, text)
+                        logger.info(f"Telegram: {handler_name} for chat_id={chat_id}")
+                    else:
+                        logger.warning(f"No handler for route: {handler_name}")
+                else:
+                    logger.info(f"Telegram: no route for chat_id={chat_id} text={text[:30]}")
 
         if callback_query_id:
             from telegram_client import answer_callback

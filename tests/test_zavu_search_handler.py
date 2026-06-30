@@ -156,12 +156,13 @@ async def test_start_clears_search_state(monkeypatch):
         "next_index": 5,
     }
 
-    async def fake_send_text(chat_id, text):
-        messages.append((chat_id, text))
+    async def fake_send_menu(chat_id, text, buttons):
+        messages.append((chat_id, text, buttons))
 
-    monkeypatch.setattr(zavu_handlers, "send_text_async", fake_send_text)
+    monkeypatch.setattr(zavu_handlers, "send_menu_with_buttons_async", fake_send_menu)
 
     await zavu_handlers.handle_start("123", "/start")
 
     assert "123" not in zavu_handlers._search_results_state
     assert "BuscaChat" in messages[0][1]
+    assert len(messages[0][2]) == 5
