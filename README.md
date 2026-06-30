@@ -4,7 +4,7 @@ Bot de Telegram para reunificación familiar tras el terremoto en Venezuela (Mw 
 
 Parte del hackathon **Build 4 Venezuela**.
 
-[![Tests](https://img.shields.io/badge/tests-87%2F87%20passing-brightgreen)](https://github.com/gfurion/Buscachat-Telegram)
+[![Tests](https://img.shields.io/badge/tests-117%2F117%20passing-brightgreen)](https://github.com/gfurion/Buscachat-Telegram)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://python.org)
 [![Deploy](https://img.shields.io/badge/deploy-Railway-8B5CF6)](https://buscachat-telegram-production.up.railway.app/health)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -15,7 +15,7 @@ Parte del hackathon **Build 4 Venezuela**.
 
 | Comando / Acción | Descripción |
 |---|---|
-| `/start` | Menú principal textual (5 opciones numéricas) |
+| `/start` | Menú principal con botones inline (5 opciones: Buscar, Registrar, Refugios, Emergencia, Ayuda) |
 | `1` o `/buscar [nombre]` | Buscar personas por nombre o cédula en fuentes agregadas |
 | `1` después de buscar | Ver la siguiente página de resultados pendientes |
 | `2` después de buscar | Hacer otra búsqueda |
@@ -34,7 +34,7 @@ Parte del hackathon **Build 4 Venezuela**.
 - **SQLite** — base de datos local (MVP)
 - **InsightFace / ArcFace** — reconocimiento facial (facerec.py de Venezuela Juntos)
 - **Railway** — hosting (webhook FastAPI)
-- **pytest + pytest-asyncio** — 87 tests
+- **pytest + pytest-asyncio** — 117 tests
 
 ## 📁 Estructura del proyecto
 
@@ -43,7 +43,7 @@ buscachat-telegram/
 ├── zavu_webhook.py            # FastAPI app + /webhook/telegram + /health
 ├── zavu_handlers.py           # Handlers: start, buscar, ayuda, registrar, fotos
 ├── zavu_state.py              # State machine reportar (nombre→cédula→ubicación→confirmar)
-├── telegram_client.py         # Wrapper python-telegram-bot (send_text, send_photo)
+├── telegram_client.py         # Wrapper python-telegram-bot (send_text, send_photo, send_menu_with_buttons, edit_message_text)
 ├── config.py                  # Settings con validación
 ├── Dockerfile                 # Deploy Railway (CMD uvicorn)
 ├── services/
@@ -58,7 +58,7 @@ buscachat-telegram/
 │   └── persona.py             # Persona, TipoReporte
 ├── lib/
 │   └── facerec.py             # ArcFace standalone (Venezuela Juntos)
-└── tests/                     # 87 tests
+└── tests/                     # 117 tests
     ├── test_zavu_handlers.py  # Tests de handlers
     ├── test_zavu_state.py     # Tests del state machine
     ├── test_zavu_search_handler.py
@@ -67,6 +67,7 @@ buscachat-telegram/
     ├── test_database.py       # Tests DB
     ├── test_found_people_api.py
     ├── test_acopiove.py       # Tests AcopioVE
+    ├── test_inline_buttons.py # Tests botones inline
     ├── test_reportavnzla.py   # Tests ReportaVNZLA
     └── test_face_matching.py  # Tests face matching
 ```
@@ -164,19 +165,20 @@ Usuario Telegram → Telegram Bot API → Railway (/webhook/telegram) → FastAP
 ```
 
 - Webhook recibe updates de Telegram con `X-Telegram-Bot-Api-Secret-Token`
-- Router clasifica: comandos, menú numérico (1-5), texto libre, imágenes
+- Router clasifica: comandos, menú numérico (1-5), botones inline (btn:), texto libre, imágenes
+- Botones inline (btn:) se rutean directamente a HANDLER_MAP con message_id para edit-in-place
 - State machine maneja flujo reportar con 4 pasos (nombre→cedula→ubicacion→confirmar)
 - Estado temporal de búsqueda guarda resultados pendientes por `chat_id` para paginar con opciones `1`, `2` y `3`
 - Búsqueda combinada: ReportaVNZLA + found-people-ve-bot + AcopioVE vía `PeopleSearchAggregator`
 - Fotos se guardan como URL en SQLite — búsqueda por foto desactivada temporalmente
 
-### Menú principal
+### Menú principal (botones inline)
 ```
-🔍 1. Buscar persona — por nombre o cédula
-📝 2. Registrar persona — desaparecida o encontrada
-🏠 3. Refugios cercanos — centros de ayuda
-📞 4. Teléfonos de emergencia
-🆘 5. Ayuda — cómo funciona el bot
+🔍 1. Buscar persona → sub-menú: nombre, cédula, foto
+📝 2. Registrar persona → sub-menú: desaparecida, encontrada
+🏠 3. Refugios cercanos → sub-menú: por ciudad, mapa
+📞 4. Teléfonos de emergencia → sub-menú: médica, policial, bomberos
+🆘 5. Ayuda → sub-menú: cómo usar, privacidad, contacto
 ```
 
 ## 📋 Estado del proyecto
@@ -190,13 +192,14 @@ Usuario Telegram → Telegram Bot API → Railway (/webhook/telegram) → FastAP
 | BUS-25 | Flujo reportar encontrado | ✅ |
 | BUS-26 | DB con embeddings | ✅ |
 | BUS-27 | Deploy Railway | ✅ Producción |
-| BUS-28 | Tests | ✅ 87/87 |
+| BUS-28 | Tests | ✅ 117/117 |
 | — | Búsqueda multi-fuente con normalización/deduplicación | ✅ |
 | — | Paginación de resultados por chat_id | ✅ |
 | — | AcopioVE (refugios, emergencia) | ✅ |
 | — | ReportaVNZLA (búsqueda estructurada) | ✅ |
 | — | FSM persistente a SQLite | ✅ |
 | — | Migración Zavu → Telegram directo | ✅ |
+| — | Botones inline nativos | ✅ |
 | 🔜 | Reconocimiento facial (FR-API ReportaVNZLA) | Pendiente API key |
 
 ---
