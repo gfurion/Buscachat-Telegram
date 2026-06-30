@@ -16,3 +16,10 @@ def normalizar_texto(texto: str) -> str:
     sin_acentos = re.sub(r'\s+', ' ', sin_acentos).strip()
 
     return sin_acentos
+
+
+def escape_md(text: str) -> str:
+    """Escapa caracteres especiales de MarkdownV1 en texto del usuario."""
+    if not text:
+        return text
+    return text.replace("\\", "\\\\").replace("_", "\\_").replace("*", "\\*").replace("`", "\\`")

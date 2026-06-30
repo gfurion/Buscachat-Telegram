@@ -10,6 +10,7 @@ from services.database import get_db
 from services.face_matching import FaceMatcher
 from services.acopiove_api import AcopioVEAPI
 from services.people_search import PeopleSearchAggregator
+from services.normalizer import escape_md
 from zavu_state import ReportStateMachine
 from config import Config
 from pathlib import Path
@@ -221,6 +222,15 @@ async def handle_photo_report(chat_id: str, text: str = "") -> None:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(file.file_path)
             resp.raise_for_status()
+            content_type = resp.headers.get("content-type", "")
+            content_length = int(resp.headers.get("content-length", "0"))
+
+            if content_length > 10 * 1024 * 1024:
+                raise RuntimeError("File too large (max 10MB)")
+
+            if content_type not in ("image/jpeg", "image/png", "image/webp"):
+                raise RuntimeError(f"Invalid content type: {content_type}")
+
             file_bytes = resp.content
 
         filename = f"{chat_id}_{int(time.time())}.jpg"
@@ -325,7 +335,7 @@ async def handle_search_menu(chat_id: str, text: str = "") -> None:
 
 def _format_search_page(query: str, results: list, start_index: int) -> tuple[str, list[str]]:
     end_index = min(start_index + SEARCH_PAGE_SIZE, len(results))
-    response = f"*Resultados para {query}*\n\n"
+    response = f"*Resultados para {escape_md(query)}*\n\n"
 
     photo_urls: list[str] = []
     for i, persona in enumerate(results[start_index:end_index], start_index + 1):

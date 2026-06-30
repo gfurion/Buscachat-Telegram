@@ -4,6 +4,7 @@ import logging
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from cachetools import TTLCache
 
 from config import Config
 from zavu_handlers import HANDLER_MAP, get_search_results_route, answer_callback_async, send_text_async
@@ -13,6 +14,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="BuscaChat Webhook")
+
+# Rate limiting: max 30 requests per minute per chat_id
+_rate_limiter: TTLCache[str, int] = TTLCache(maxsize=10000, ttl=60)
+RATE_LIMIT_MAX = 30
 
 
 @app.get("/health")
@@ -98,6 +103,13 @@ async def telegram_webhook(request: Request):
         text = message.get("text", "")
         callback_query_id = None
         message_id = None
+
+    # Rate limiting
+    count = _rate_limiter.get(chat_id, 0)
+    _rate_limiter[chat_id] = count + 1
+    if count >= RATE_LIMIT_MAX:
+        logger.warning(f"Rate limit exceeded for chat_id={chat_id}")
+        return JSONResponse({"status": "rate_limited"}, status_code=429)
 
     if not text and message.get("photo"):
         if ReportStateMachine.get_route(chat_id) == "photo:report":

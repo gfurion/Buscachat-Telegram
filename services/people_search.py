@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 from services.acopiove_api import AcopioVEAPI
 from services.database import get_db
 from services.found_people_api import FoundPeopleAPI
-from services.normalizer import normalizar_texto
+from services.normalizer import normalizar_texto, escape_md
 from services.reportavnzla_api import ReportaVNZLAAPI
 
 logger = logging.getLogger(__name__)
@@ -172,18 +172,24 @@ class PeopleSearchAggregator:
         return sum(1 for value in fields if value)
 
     def formatear_resultado(self, result: PeopleSearchResult) -> str:
-        partes = [f"*{result.nombre}*"]
-        if result.estado:
-            partes.append(f"Estado: {result.estado}")
+        nombre = escape_md(result.nombre)
+        estado = escape_md(result.estado) if result.estado else ""
+        ubicacion = escape_md(result.ubicacion) if result.ubicacion else ""
+        info = escape_md(result.info[:200]) if result.info else ""
+        fuente = escape_md(result.fuente) if result.fuente else ""
+
+        partes = [f"*{nombre}*"]
+        if estado:
+            partes.append(f"Estado: {estado}")
         if result.cedula:
             partes.append(f"Cedula: {result.cedula}")
-        if result.ubicacion:
-            partes.append(f"Ubicacion: {result.ubicacion}")
-        if result.info:
-            partes.append(f"Info: {result.info[:200]}")
+        if ubicacion:
+            partes.append(f"Ubicacion: {ubicacion}")
+        if info:
+            partes.append(f"Info: {info}")
         if result.foto_path:
             partes.append("Foto: disponible")
-        partes.append(f"Fuente: {result.fuente}")
+        partes.append(f"Fuente: {fuente}")
         if result.source_url:
             partes.append(f"URL: {result.source_url}")
         return "\n".join(partes)

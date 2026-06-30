@@ -4,6 +4,7 @@ from typing import Optional
 
 from models.persona import Persona, TipoReporte
 from services.database import get_db
+from services.normalizer import escape_md
 
 logger = logging.getLogger(__name__)
 
@@ -14,12 +15,6 @@ CEDULA = "reportar:step:cedula"
 UBICACION = "reportar:step:ubicacion"
 FOTO = "reportar:step:foto"
 CONFIRMAR = "reportar:step:confirmar"
-
-
-def _escape_md(text: str) -> str:
-    if not text:
-        return text
-    return text.replace("\\", "\\\\").replace("_", "\\_").replace("*", "\\*").replace("`", "\\`")
 
 
 class ReportStateMachine:
@@ -108,9 +103,11 @@ class ReportStateMachine:
     def _step_nombre(cls, state: dict, text: str) -> Optional[str]:
         if len(text) < 2:
             return "El nombre debe tener al menos 2 caracteres. Proba de nuevo:"
+        if len(text) > 200:
+            return "El nombre es demasiado largo (maximo 200 caracteres). Proba de nuevo:"
         state["nombre"] = text
         state["step"] = CEDULA
-        return f"Nombre: *{_escape_md(text)}*\n\nCual es el numero de cedula?\nEscribi /skip si no sabes."
+        return f"Nombre: *{escape_md(text)}*\n\nCual es el numero de cedula?\nEscribi /skip si no sabes."
 
     @classmethod
     def _step_cedula(cls, state: dict, text: str) -> Optional[str]:
@@ -127,6 +124,8 @@ class ReportStateMachine:
     def _step_ubicacion(cls, state: dict, text: str) -> Optional[str]:
         if text == "/skip":
             state["ubicacion"] = ""
+        elif len(text) > 300:
+            return "La ubicacion es demasiado larga (maximo 300 caracteres). Proba de nuevo:"
         else:
             state["ubicacion"] = text
         state["step"] = FOTO
@@ -184,7 +183,7 @@ class ReportStateMachine:
         return (
             f"*Reporte guardado correctamente*\n\n"
             f"ID: #{persona_id}\n"
-            f"Nombre: {_escape_md(persona.nombre)}\n"
+            f"Nombre: {escape_md(persona.nombre)}\n"
             f"Tipo: {tipo_text}\n\n"
             "Escribi /start para volver al menu."
         )
@@ -195,8 +194,8 @@ class ReportStateMachine:
         tipo_text = "desaparecido/a" if tipo_str == "desaparecido" else "encontrado/a"
         foto_status = "✅ Adjuntada" if state.get("foto_file_id") else "❌ No adjuntada"
         logger.info(f"Build summary: tipo_str={tipo_str} tipo_text={tipo_text}")
-        nombre = _escape_md(state.get("nombre", "-") or "-")
-        ubicacion = _escape_md(state.get("ubicacion") or "No informada")
+        nombre = escape_md(state.get("nombre", "-") or "-")
+        ubicacion = escape_md(state.get("ubicacion") or "No informada")
         cedula = state.get("cedula") or "No informada"
         return (
             f"*Resumen del reporte*\n\n"
