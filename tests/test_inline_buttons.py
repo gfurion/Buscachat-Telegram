@@ -37,3 +37,45 @@ class TestSendMenuWithButtons:
         assert len(markup.inline_keyboard) == 2
         assert markup.inline_keyboard[0][0].text == "Buscar"
         assert markup.inline_keyboard[0][0].callback_data == "btn:1"
+
+
+class TestEditMessageText:
+    @patch("telegram_client.get_bot")
+    def test_edit_message_text_calls_bot(self, mock_get_bot):
+        mock_bot = MagicMock()
+        mock_bot.edit_message_text = AsyncMock()
+        mock_get_bot.return_value = mock_bot
+
+        from telegram_client import edit_message_text
+        edit_message_text(123456, 789, "New text")
+
+        mock_bot.edit_message_text.assert_called_once()
+        call_kwargs = mock_bot.edit_message_text.call_args[1]
+        assert call_kwargs["chat_id"] == 123456
+        assert call_kwargs["message_id"] == 789
+        assert call_kwargs["text"] == "New text"
+
+    @patch("telegram_client.get_bot")
+    def test_edit_message_text_with_buttons(self, mock_get_bot):
+        mock_bot = MagicMock()
+        mock_bot.edit_message_text = AsyncMock()
+        mock_get_bot.return_value = mock_bot
+
+        from telegram_client import edit_message_text
+        buttons = [[{"text": "OK", "callback_data": "btn:ok"}]]
+        edit_message_text(123456, 789, "Updated", buttons)
+
+        call_kwargs = mock_bot.edit_message_text.call_args[1]
+        assert call_kwargs["reply_markup"] is not None
+
+    @patch("telegram_client.get_bot")
+    def test_edit_message_text_converts_chat_id_to_int(self, mock_get_bot):
+        mock_bot = MagicMock()
+        mock_bot.edit_message_text = AsyncMock()
+        mock_get_bot.return_value = mock_bot
+
+        from telegram_client import edit_message_text
+        edit_message_text("123456", 789, "Text")
+
+        call_kwargs = mock_bot.edit_message_text.call_args[1]
+        assert isinstance(call_kwargs["chat_id"], int)
