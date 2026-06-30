@@ -484,10 +484,12 @@ async def handle_btn_buscar_foto(chat_id: str, text: str = "", message_id: int |
 
 
 async def handle_btn_refugios_ciudad(chat_id: str, text: str = "", message_id: int | None = None) -> None:
+    _refugios_waiting[chat_id] = True
     await send_text_async(chat_id, "🏠 *Refugios por ciudad*\n\nEscribí el nombre de la ciudad para buscar refugios cercanos:")
 
 
 async def handle_btn_refugios_mapa(chat_id: str, text: str = "", message_id: int | None = None) -> None:
+    _refugios_waiting[chat_id] = True
     await send_text_async(chat_id, "🏠 *Mapa de refugios*\n\nEscribí tu ubicación para ver refugios cercanos en el mapa:")
 
 
