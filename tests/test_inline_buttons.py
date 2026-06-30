@@ -131,3 +131,35 @@ class TestMainMenuButtons:
         for row in buttons:
             assert "text" in row[0]
             assert len(row[0]["text"]) > 0
+
+
+class TestHandleStartWithButtons:
+    @pytest.mark.asyncio
+    async def test_handle_start_sends_menu_with_buttons(self):
+        from zavu_handlers import handle_start
+        with patch("zavu_handlers.send_menu_with_buttons_async") as mock_send:
+            mock_send.return_value = None
+            await handle_start("123456")
+            mock_send.assert_called_once()
+            call_args = mock_send.call_args
+            assert call_args[0][0] == "123456"
+            assert len(call_args[0][2]) == 5
+
+    @pytest.mark.asyncio
+    async def test_handle_start_edits_when_message_id(self):
+        from zavu_handlers import handle_start
+        with patch("zavu_handlers.edit_menu_async") as mock_edit:
+            mock_edit.return_value = None
+            await handle_start("123456", message_id=789)
+            mock_edit.assert_called_once()
+            call_args = mock_edit.call_args
+            assert call_args[0][0] == 123456
+            assert call_args[0][1] == 789
+
+    @pytest.mark.asyncio
+    async def test_handle_menu_sends_menu_with_buttons(self):
+        from zavu_handlers import handle_menu
+        with patch("zavu_handlers.send_menu_with_buttons_async") as mock_send:
+            mock_send.return_value = None
+            await handle_menu("123456")
+            mock_send.assert_called_once()

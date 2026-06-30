@@ -105,15 +105,23 @@ def get_search_results_route(chat_id: str, text: str) -> str | None:
     return None
 
 
-async def handle_start(chat_id: str, text: str = "") -> None:
+async def handle_start(chat_id: str, text: str = "", message_id: int | None = None) -> None:
     ReportStateMachine.cancel(chat_id)
     clear_search_state(chat_id)
-    await send_text_async(chat_id, MENU_TEXT)
+    buttons = _build_main_menu_buttons()
+    if message_id:
+        await edit_menu_async(int(chat_id), message_id, MENU_TEXT, buttons)
+    else:
+        await send_menu_with_buttons_async(chat_id, MENU_TEXT, buttons)
 
 
-async def handle_menu(chat_id: str, text: str = "") -> None:
+async def handle_menu(chat_id: str, text: str = "", message_id: int | None = None) -> None:
     clear_search_state(chat_id)
-    await send_text_async(chat_id, MENU_TEXT)
+    buttons = _build_main_menu_buttons()
+    if message_id:
+        await edit_menu_async(int(chat_id), message_id, MENU_TEXT, buttons)
+    else:
+        await send_menu_with_buttons_async(chat_id, MENU_TEXT, buttons)
 
 
 async def handle_menu_registrar(chat_id: str, text: str = "") -> None:
