@@ -186,3 +186,119 @@ class TestRegistrarSubOptions:
             mock_edit.return_value = None
             await handle_menu_registrar("123456", message_id=789)
             mock_edit.assert_called_once()
+
+
+class TestRegistrarDesaparecidoEncontrado:
+    @pytest.mark.asyncio
+    async def test_btn_registrar_desaparecido_sends_text(self):
+        from zavu_handlers import handle_btn_registrar_desaparecido
+        with patch("zavu_handlers.send_text_async") as mock_send:
+            mock_send.return_value = None
+            await handle_btn_registrar_desaparecido("123456")
+            mock_send.assert_called_once()
+            assert "nombre" in mock_send.call_args[0][1].lower()
+
+    @pytest.mark.asyncio
+    async def test_btn_registrar_encontrado_sends_text(self):
+        from zavu_handlers import handle_btn_registrar_encontrado
+        with patch("zavu_handlers.send_text_async") as mock_send:
+            mock_send.return_value = None
+            await handle_btn_registrar_encontrado("123456")
+            mock_send.assert_called_once()
+            assert "nombre" in mock_send.call_args[0][1].lower()
+
+
+class TestBuscarSubOptions:
+    @pytest.mark.asyncio
+    async def test_btn_buscar_nombre_sends_text(self):
+        from zavu_handlers import handle_btn_buscar_nombre
+        with patch("zavu_handlers.send_text_async") as mock_send:
+            mock_send.return_value = None
+            await handle_btn_buscar_nombre("123456")
+            mock_send.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_btn_buscar_cedula_sends_text(self):
+        from zavu_handlers import handle_btn_buscar_cedula
+        with patch("zavu_handlers.send_text_async") as mock_send:
+            mock_send.return_value = None
+            await handle_btn_buscar_cedula("123456")
+            mock_send.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_btn_buscar_foto_sends_text(self):
+        from zavu_handlers import handle_btn_buscar_foto
+        with patch("zavu_handlers.send_text_async") as mock_send:
+            mock_send.return_value = None
+            await handle_btn_buscar_foto("123456")
+            mock_send.assert_called_once()
+
+
+class TestRefugiosSubOptions:
+    @pytest.mark.asyncio
+    async def test_btn_refugios_ciudad_sends_text(self):
+        from zavu_handlers import handle_btn_refugios_ciudad
+        with patch("zavu_handlers.send_text_async") as mock_send:
+            mock_send.return_value = None
+            await handle_btn_refugios_ciudad("123456")
+            mock_send.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_btn_refugios_mapa_sends_text(self):
+        from zavu_handlers import handle_btn_refugios_mapa
+        with patch("zavu_handlers.send_text_async") as mock_send:
+            mock_send.return_value = None
+            await handle_btn_refugios_mapa("123456")
+            mock_send.assert_called_once()
+
+
+class TestEmergenciaSubOptions:
+    @pytest.mark.asyncio
+    async def test_btn_emergencia_medica_sends_text(self):
+        from zavu_handlers import handle_btn_emergencia_medica
+        with patch("zavu_handlers.send_text_async") as mock_send:
+            mock_send.return_value = None
+            await handle_btn_emergencia_medica("123456")
+            mock_send.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_btn_emergencia_policial_sends_text(self):
+        from zavu_handlers import handle_btn_emergencia_policial
+        with patch("zavu_handlers.send_text_async") as mock_send:
+            mock_send.return_value = None
+            await handle_btn_emergencia_policial("123456")
+            mock_send.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_btn_emergencia_bomberos_sends_text(self):
+        from zavu_handlers import handle_btn_emergencia_bomberos
+        with patch("zavu_handlers.send_text_async") as mock_send:
+            mock_send.return_value = None
+            await handle_btn_emergencia_bomberos("123456")
+            mock_send.assert_called_once()
+
+
+class TestAyudaSubOptions:
+    @pytest.mark.asyncio
+    async def test_btn_ayuda_como_usar_sends_text(self):
+        from zavu_handlers import handle_btn_ayuda_como_usar
+        with patch("zavu_handlers.send_text_async") as mock_send:
+            mock_send.return_value = None
+            await handle_btn_ayuda_como_usar("123456")
+            mock_send.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_btn_ayuda_privacidad_sends_text(self):
+        from zavu_handlers import handle_btn_ayuda_privacidad
+        with patch("zavu_handlers.send_text_async") as mock_send:
+            mock_send.return_value = None
+            await handle_btn_ayuda_privacidad("123456")
+            mock_send.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_btn_ayuda_contacto_sends_text(self):
+        from zavu_handlers import handle_btn_ayuda_contacto
+        with patch("zavu_handlers.send_text_async") as mock_send:
+            mock_send.return_value = None
+            await handle_btn_ayuda_contacto("123456")
+            mock_send.assert_called_once()

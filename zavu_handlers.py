@@ -397,6 +397,62 @@ async def _buscar_refugios(chat_id: str, ciudad: str) -> None:
     await send_text_async(chat_id, respuesta)
 
 
+async def handle_btn_registrar_desaparecido(chat_id: str, text: str = "", message_id: int | None = None) -> None:
+    _registrar_waiting.pop(chat_id, None)
+    prompt = ReportStateMachine.start(chat_id, "desaparecido")
+    await send_text_async(chat_id, prompt)
+
+
+async def handle_btn_registrar_encontrado(chat_id: str, text: str = "", message_id: int | None = None) -> None:
+    _registrar_waiting.pop(chat_id, None)
+    prompt = ReportStateMachine.start(chat_id, "encontrado")
+    await send_text_async(chat_id, prompt)
+
+
+async def handle_btn_buscar_nombre(chat_id: str, text: str = "", message_id: int | None = None) -> None:
+    await send_text_async(chat_id, "🔍 *Buscar por nombre*\n\nEscribí el nombre de la persona que buscás:")
+
+
+async def handle_btn_buscar_cedula(chat_id: str, text: str = "", message_id: int | None = None) -> None:
+    await send_text_async(chat_id, "🔍 *Buscar por cédula*\n\nEscribí el número de cédula de la persona que buscás:")
+
+
+async def handle_btn_buscar_foto(chat_id: str, text: str = "", message_id: int | None = None) -> None:
+    await send_text_async(chat_id, "🔍 *Buscar por foto*\n\nAdjuntá una foto de la persona que buscás.")
+
+
+async def handle_btn_refugios_ciudad(chat_id: str, text: str = "", message_id: int | None = None) -> None:
+    await send_text_async(chat_id, "🏠 *Refugios por ciudad*\n\nEscribí el nombre de la ciudad para buscar refugios cercanos:")
+
+
+async def handle_btn_refugios_mapa(chat_id: str, text: str = "", message_id: int | None = None) -> None:
+    await send_text_async(chat_id, "🏠 *Mapa de refugios*\n\nEscribí tu ubicación para ver refugios cercanos en el mapa:")
+
+
+async def handle_btn_emergencia_medica(chat_id: str, text: str = "", message_id: int | None = None) -> None:
+    await send_text_async(chat_id, "🏥 *Emergencia médica*\n\n📞 *171* — Bomberos\n📞 *128* — Cruz Roja\n📞 *129* — Ambulancia")
+
+
+async def handle_btn_emergencia_policial(chat_id: str, text: str = "", message_id: int | None = None) -> None:
+    await send_text_async(chat_id, "🚔 *Emergencia policial*\n\n📞 *123* — Policía Nacional\n📞 *147* — Policía Municipal")
+
+
+async def handle_btn_emergencia_bomberos(chat_id: str, text: str = "", message_id: int | None = None) -> None:
+    await send_text_async(chat_id, "🚒 *Bomberos*\n\n📞 *171* — Bomberos nacionales")
+
+
+async def handle_btn_ayuda_como_usar(chat_id: str, text: str = "", message_id: int | None = None) -> None:
+    await send_text_async(chat_id, "❓ *Cómo usar BuscaChat*\n\n1️⃣ Usá /start para ver el menú\n2️⃣ Elegí una opción con los botones\n3️⃣ Seguí las instrucciones paso a paso")
+
+
+async def handle_btn_ayuda_privacidad(chat_id: str, text: str = "", message_id: int | None = None) -> None:
+    await send_text_async(chat_id, "🔒 *Privacidad*\n\nTus datos son confidenciales.\nNo se comparten con terceros.\nSolo se usan para la búsqueda de personas.")
+
+
+async def handle_btn_ayuda_contacto(chat_id: str, text: str = "", message_id: int | None = None) -> None:
+    await send_text_async(chat_id, "📞 *Contacto*\n\n📧 @BuscaChatVzla_bot\n🌐 buscachat-telegram-production.up.railway.app")
+
+
 async def send_text_async(chat_id: str, text: str) -> None:
     try:
         await asyncio.to_thread(send_text, chat_id, text)
