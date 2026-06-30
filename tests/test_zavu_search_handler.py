@@ -127,7 +127,11 @@ async def test_search_menu_clears_state_and_shows_menu(monkeypatch):
     async def fake_send_text(chat_id, text):
         messages.append((chat_id, text))
 
+    async def fake_send_menu(chat_id, text, buttons):
+        messages.append((chat_id, text))
+
     monkeypatch.setattr(zavu_handlers, "send_text_async", fake_send_text)
+    monkeypatch.setattr(zavu_handlers, "send_menu_with_buttons_async", fake_send_menu)
 
     await zavu_handlers.handle_search_menu("123", "3")
 

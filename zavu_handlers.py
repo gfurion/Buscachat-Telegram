@@ -25,7 +25,9 @@ _refugios_waiting: TTLCache[str, bool] = TTLCache(maxsize=10000, ttl=600)
 _registrar_waiting: TTLCache[str, bool] = TTLCache(maxsize=10000, ttl=600)
 _ciudades_cache: TTLCache[str, list] = TTLCache(maxsize=10, ttl=300)
 _search_results_state: dict[str, dict] = {}
+_refugios_results_state: dict[str, dict] = {}
 SEARCH_PAGE_SIZE = 5
+REFUGIOS_PAGE_SIZE = 5
 
 
 def _build_main_menu_buttons() -> list[list[dict]]:
@@ -297,8 +299,6 @@ async def _realizar_busqueda(chat_id: str, query: str) -> None:
         await send_image_async(chat_id, foto_url)
 
     buttons = _build_search_nav_buttons(chat_id)
-    if len(buttons) > 1 or (buttons and len(resultados) < SEARCH_PAGE_SIZE):
-        pass
     await send_menu_with_buttons_async(chat_id, "¿Qué querés hacer?", buttons)
 
 
@@ -340,7 +340,11 @@ async def handle_search_new(chat_id: str, text: str = "", message_id: int | None
 
 async def handle_search_menu(chat_id: str, text: str = "", message_id: int | None = None) -> None:
     clear_search_state(chat_id)
-    await send_text_async(chat_id, MENU_TEXT)
+    if message_id:
+        buttons = _build_main_menu_buttons()
+        await edit_menu_async(int(chat_id), message_id, MENU_TEXT, buttons)
+    else:
+        await send_menu_with_buttons_async(chat_id, MENU_TEXT, _build_main_menu_buttons())
 
 
 async def handle_search_nav(chat_id: str, text: str = "", message_id: int | None = None) -> None:
@@ -474,6 +478,7 @@ async def _buscar_refugios(chat_id: str, ciudad: str) -> None:
     if not puntos:
         acopios = await acopiove.buscar_puntos(tipo="acopio", ciudad=ciudad)
         if acopios:
+            _refugios_results_state.pop(chat_id, None)
             respuesta = f"🏠 *No hay refugios en {ciudad}*, pero hay {len(acopios)} centros de acopio:\n\n"
             for punto in acopios[:5]:
                 respuesta += f"{acopiove.formatear_punto(punto)}\n\n"
@@ -490,39 +495,97 @@ async def _buscar_refugios(chat_id: str, ciudad: str) -> None:
         )
         return
 
+    _refugios_results_state[chat_id] = {
+        "ciudad": ciudad,
+        "results": puntos,
+        "next_index": min(REFUGIOS_PAGE_SIZE, len(puntos)),
+        "tipo": "refugio",
+    }
+
     respuesta = f"🏠 *Refugios en {ciudad}*\n\n"
-    for punto in puntos[:5]:
+    for punto in puntos[:REFUGIOS_PAGE_SIZE]:
         respuesta += f"{acopiove.formatear_punto(punto)}\n\n"
 
-    if len(puntos) > 5:
-        respuesta += f"... y {len(puntos) - 5} mas\n\n"
-
-    respuesta += "Escribe /start para volver al menu."
     await send_text_async(chat_id, respuesta)
+    await _send_refugios_nav_buttons(chat_id)
+
+
+async def _send_refugios_nav_buttons(chat_id: str) -> None:
+    state = _refugios_results_state.get(chat_id)
+    if not state:
+        return
+    remaining = len(state["results"]) - state["next_index"]
+    buttons = []
+    if remaining > 0:
+        buttons.append([{"text": f"➡️ Siguiente ({remaining} más)", "callback_data": "btn:refugios:more"}])
+    buttons.append([{"text": "🏠 Menú", "callback_data": "btn:menu"}])
+    await send_menu_with_buttons_async(chat_id, "¿Qué querés hacer?", buttons)
+
+
+async def handle_refugios_more(chat_id: str, text: str = "", message_id: int | None = None) -> None:
+    state = _refugios_results_state.get(chat_id)
+    if not state:
+        await send_text_async(chat_id, MENU_TEXT)
+        return
+
+    next_index = state["next_index"]
+    results = state["results"]
+
+    if next_index >= len(results):
+        await send_text_async(chat_id, "No hay más refugios disponibles.")
+        return
+
+    ciudad = state["ciudad"]
+    respuesta = f"🏠 *Refugios en {ciudad}*\n\n"
+    end = min(next_index + REFUGIOS_PAGE_SIZE, len(results))
+    for punto in results[next_index:end]:
+        respuesta += f"{acopiove.formatear_punto(punto)}\n\n"
+
+    state["next_index"] = end
+    await send_text_async(chat_id, respuesta)
+    await _send_refugios_nav_buttons(chat_id)
 
 
 async def handle_btn_registrar_desaparecido(chat_id: str, text: str = "", message_id: int | None = None) -> None:
     _registrar_waiting.pop(chat_id, None)
     prompt = ReportStateMachine.start(chat_id, "desaparecido")
-    await send_text_async(chat_id, prompt)
+    if message_id:
+        await edit_menu_async(int(chat_id), message_id, prompt, None)
+    else:
+        await send_text_async(chat_id, prompt)
 
 
 async def handle_btn_registrar_encontrado(chat_id: str, text: str = "", message_id: int | None = None) -> None:
     _registrar_waiting.pop(chat_id, None)
     prompt = ReportStateMachine.start(chat_id, "encontrado")
-    await send_text_async(chat_id, prompt)
+    if message_id:
+        await edit_menu_async(int(chat_id), message_id, prompt, None)
+    else:
+        await send_text_async(chat_id, prompt)
 
 
 async def handle_btn_buscar_nombre(chat_id: str, text: str = "", message_id: int | None = None) -> None:
-    await send_text_async(chat_id, "🔍 *Buscar por nombre*\n\nEscribí el nombre de la persona que buscás:")
+    texto = "🔍 *Buscar por nombre*\n\nEscribí el nombre de la persona que buscás:"
+    if message_id:
+        await edit_menu_async(int(chat_id), message_id, texto, None)
+    else:
+        await send_text_async(chat_id, texto)
 
 
 async def handle_btn_buscar_cedula(chat_id: str, text: str = "", message_id: int | None = None) -> None:
-    await send_text_async(chat_id, "🔍 *Buscar por cédula*\n\nEscribí el número de cédula de la persona que buscás:")
+    texto = "🔍 *Buscar por cédula*\n\nEscribí el número de cédula de la persona que buscás:"
+    if message_id:
+        await edit_menu_async(int(chat_id), message_id, texto, None)
+    else:
+        await send_text_async(chat_id, texto)
 
 
 async def handle_btn_buscar_foto(chat_id: str, text: str = "", message_id: int | None = None) -> None:
-    await send_text_async(chat_id, "🔍 *Buscar por foto*\n\nAdjuntá una foto de la persona que buscás.")
+    texto = "🔍 *Buscar por foto*\n\nAdjuntá una foto de la persona que buscás."
+    if message_id:
+        await edit_menu_async(int(chat_id), message_id, texto, None)
+    else:
+        await send_text_async(chat_id, texto)
 
 
 async def handle_refugios_ciudades(chat_id: str, text: str = "", message_id: int | None = None) -> None:
@@ -599,27 +662,51 @@ async def handle_refugios_ciudad_item(chat_id: str, text: str = "", message_id: 
 
 
 async def handle_btn_emergencia_medica(chat_id: str, text: str = "", message_id: int | None = None) -> None:
-    await send_text_async(chat_id, "🏥 *Emergencia médica*\n\n📞 *171* — Bomberos\n📞 *128* — Cruz Roja\n📞 *129* — Ambulancia")
+    texto = "🏥 *Emergencia médica*\n\n📞 *171* — Bomberos\n📞 *128* — Cruz Roja\n📞 *129* — Ambulancia"
+    if message_id:
+        await edit_menu_async(int(chat_id), message_id, texto, None)
+    else:
+        await send_text_async(chat_id, texto)
 
 
 async def handle_btn_emergencia_policial(chat_id: str, text: str = "", message_id: int | None = None) -> None:
-    await send_text_async(chat_id, "🚔 *Emergencia policial*\n\n📞 *123* — Policía Nacional\n📞 *147* — Policía Municipal")
+    texto = "🚔 *Emergencia policial*\n\n📞 *123* — Policía Nacional\n📞 *147* — Policía Municipal"
+    if message_id:
+        await edit_menu_async(int(chat_id), message_id, texto, None)
+    else:
+        await send_text_async(chat_id, texto)
 
 
 async def handle_btn_emergencia_bomberos(chat_id: str, text: str = "", message_id: int | None = None) -> None:
-    await send_text_async(chat_id, "🚒 *Bomberos*\n\n📞 *171* — Bomberos nacionales")
+    texto = "🚒 *Bomberos*\n\n📞 *171* — Bomberos nacionales"
+    if message_id:
+        await edit_menu_async(int(chat_id), message_id, texto, None)
+    else:
+        await send_text_async(chat_id, texto)
 
 
 async def handle_btn_ayuda_como_usar(chat_id: str, text: str = "", message_id: int | None = None) -> None:
-    await send_text_async(chat_id, "❓ *Cómo usar BuscaChat*\n\n1️⃣ Usá /start para ver el menú\n2️⃣ Elegí una opción con los botones\n3️⃣ Seguí las instrucciones paso a paso")
+    texto = "❓ *Cómo usar BuscaChat*\n\n1️⃣ Usá /start para ver el menú\n2️⃣ Elegí una opción con los botones\n3️⃣ Seguí las instrucciones paso a paso"
+    if message_id:
+        await edit_menu_async(int(chat_id), message_id, texto, None)
+    else:
+        await send_text_async(chat_id, texto)
 
 
 async def handle_btn_ayuda_privacidad(chat_id: str, text: str = "", message_id: int | None = None) -> None:
-    await send_text_async(chat_id, "🔒 *Privacidad*\n\nTus datos son confidenciales.\nNo se comparten con terceros.\nSolo se usan para la búsqueda de personas.")
+    texto = "🔒 *Privacidad*\n\nTus datos son confidenciales.\nNo se comparten con terceros.\nSolo se usan para la búsqueda de personas."
+    if message_id:
+        await edit_menu_async(int(chat_id), message_id, texto, None)
+    else:
+        await send_text_async(chat_id, texto)
 
 
 async def handle_btn_ayuda_contacto(chat_id: str, text: str = "", message_id: int | None = None) -> None:
-    await send_text_async(chat_id, "📞 *Contacto*\n\n📧 @BuscaChatVzla_bot\n🌐 buscachat-telegram-production.up.railway.app")
+    texto = "📞 *Contacto*\n\n📧 @BuscaChatVzla_bot\n🌐 buscachat-telegram-production.up.railway.app"
+    if message_id:
+        await edit_menu_async(int(chat_id), message_id, texto, None)
+    else:
+        await send_text_async(chat_id, texto)
 
 
 async def handle_btn_buscar(chat_id: str, text: str = "", message_id: int | None = None) -> None:
@@ -812,6 +899,7 @@ HANDLER_MAP = {
     "btn:refugios:ciudades": handle_refugios_ciudades,
     "btn:refugios:ciudades:page": handle_refugios_ciudades,
     "btn:refugios:ciudad:*": handle_refugios_ciudad_item,
+    "btn:refugios:more": handle_refugios_more,
     "btn:emergencia:medica": handle_btn_emergencia_medica,
     "btn:emergencia:policial": handle_btn_emergencia_policial,
     "btn:emergencia:bomberos": handle_btn_emergencia_bomberos,

@@ -122,8 +122,11 @@ async def telegram_webhook(request: Request):
     try:
         if callback_query_id and text.startswith("btn:"):
             handler = HANDLER_MAP.get(text)
-            if not handler and text.startswith("btn:refugios:ciudad:"):
-                handler = HANDLER_MAP.get("btn:refugios:ciudad:*")
+            if not handler:
+                if text.startswith("btn:refugios:ciudad:"):
+                    handler = HANDLER_MAP.get("btn:refugios:ciudad:*")
+                elif text.startswith("btn:refugios:ciudades:page:"):
+                    handler = HANDLER_MAP.get("btn:refugios:ciudades:page")
             if handler:
                 await handler(chat_id, text, message_id=message_id)
                 logger.info(f"Telegram: btn route {text} for chat_id={chat_id}")
