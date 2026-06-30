@@ -124,10 +124,18 @@ async def handle_menu(chat_id: str, text: str = "", message_id: int | None = Non
         await send_menu_with_buttons_async(chat_id, MENU_TEXT, buttons)
 
 
-async def handle_menu_registrar(chat_id: str, text: str = "") -> None:
+async def handle_menu_registrar(chat_id: str, text: str = "", message_id: int | None = None) -> None:
     clear_search_state(chat_id)
     _registrar_waiting[chat_id] = True
-    await send_text_async(chat_id, REGISTRAR_TEXT)
+    sub_buttons = [
+        [{"text": "❌ Desaparecido", "callback_data": "btn:registrar:desaparecido"}],
+        [{"text": "✅ Encontrado", "callback_data": "btn:registrar:encontrado"}],
+    ]
+    response = "*Registrar persona*\n\n¿Qué tipo de reporte querés hacer?"
+    if message_id:
+        await edit_menu_async(int(chat_id), message_id, response, sub_buttons)
+    else:
+        await send_menu_with_buttons_async(chat_id, response, sub_buttons)
 
 
 async def handle_ayuda(chat_id: str, text: str = "") -> None:

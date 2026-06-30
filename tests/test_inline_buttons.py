@@ -163,3 +163,26 @@ class TestHandleStartWithButtons:
             mock_send.return_value = None
             await handle_menu("123456")
             mock_send.assert_called_once()
+
+
+class TestRegistrarSubOptions:
+    @pytest.mark.asyncio
+    async def test_handle_menu_registrar_sends_sub_buttons(self):
+        from zavu_handlers import handle_menu_registrar
+        with patch("zavu_handlers.send_menu_with_buttons_async") as mock_send:
+            mock_send.return_value = None
+            await handle_menu_registrar("123456")
+            mock_send.assert_called_once()
+            call_args = mock_send.call_args
+            buttons = call_args[0][2]
+            assert len(buttons) == 2
+            assert buttons[0][0]["callback_data"] == "btn:registrar:desaparecido"
+            assert buttons[1][0]["callback_data"] == "btn:registrar:encontrado"
+
+    @pytest.mark.asyncio
+    async def test_handle_menu_registrar_edits_when_message_id(self):
+        from zavu_handlers import handle_menu_registrar
+        with patch("zavu_handlers.edit_menu_async") as mock_edit:
+            mock_edit.return_value = None
+            await handle_menu_registrar("123456", message_id=789)
+            mock_edit.assert_called_once()
