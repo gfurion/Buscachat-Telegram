@@ -113,6 +113,37 @@ def edit_message_text(chat_id: int, message_id: int, text: str,
         asyncio.run(_send())
 
 
+def edit_message_reply_markup(chat_id: int, message_id: int,
+                               buttons: list[list[dict]] | None = None) -> None:
+    async def _send():
+        bot = get_bot()
+        if buttons:
+            keyboard = [
+                [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])
+                 for btn in row]
+                for row in buttons
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+        else:
+            reply_markup = ""
+        await bot.edit_message_reply_markup(
+            chat_id=int(chat_id),
+            message_id=message_id,
+            reply_markup=reply_markup,
+        )
+        logger.info(f"Reply markup edited for chat_id={chat_id}")
+
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                pool.submit(asyncio.run, _send())
+        else:
+            loop.run_until_complete(_send())
+    except RuntimeError:
+        asyncio.run(_send())
+
+
 def send_image(chat_id: int, image_url: str, caption: str = "") -> None:
     send_photo(chat_id, image_url, caption)
 

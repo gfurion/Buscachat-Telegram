@@ -79,3 +79,32 @@ class TestEditMessageText:
 
         call_kwargs = mock_bot.edit_message_text.call_args[1]
         assert isinstance(call_kwargs["chat_id"], int)
+
+
+class TestEditMessageReplyMarkup:
+    @patch("telegram_client.get_bot")
+    def test_edit_reply_markup_calls_bot(self, mock_get_bot):
+        mock_bot = MagicMock()
+        mock_bot.edit_message_reply_markup = AsyncMock()
+        mock_get_bot.return_value = mock_bot
+
+        from telegram_client import edit_message_reply_markup
+        buttons = [[{"text": "OK", "callback_data": "btn:ok"}]]
+        edit_message_reply_markup(123456, 789, buttons)
+
+        mock_bot.edit_message_reply_markup.assert_called_once()
+        call_kwargs = mock_bot.edit_message_reply_markup.call_args[1]
+        assert call_kwargs["chat_id"] == 123456
+        assert call_kwargs["message_id"] == 789
+
+    @patch("telegram_client.get_bot")
+    def test_edit_reply_markup_removes_buttons(self, mock_get_bot):
+        mock_bot = MagicMock()
+        mock_bot.edit_message_reply_markup = AsyncMock()
+        mock_get_bot.return_value = mock_bot
+
+        from telegram_client import edit_message_reply_markup
+        edit_message_reply_markup(123456, 789, None)
+
+        call_kwargs = mock_bot.edit_message_reply_markup.call_args[1]
+        assert call_kwargs["reply_markup"] == ""
