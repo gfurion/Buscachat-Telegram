@@ -110,7 +110,10 @@ async def telegram_webhook(request: Request):
             active_route = ReportStateMachine.get_route(chat_id)
 
             if active_route:
-                handler = HANDLER_MAP.get(active_route)
+                if active_route == "photo:report" and not message.get("photo"):
+                    handler = HANDLER_MAP.get("reportar:step:text")
+                else:
+                    handler = HANDLER_MAP.get(active_route)
                 if handler:
                     await handler(chat_id, text)
                     logger.info(f"Telegram: {active_route} for chat_id={chat_id}")
