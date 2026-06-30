@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from config import Config
-from zavu_handlers import HANDLER_MAP, get_search_results_route, answer_callback_async
+from zavu_handlers import HANDLER_MAP, get_search_results_route, answer_callback_async, send_text_async
 from zavu_state import ReportStateMachine
 
 logging.basicConfig(level=logging.INFO)
