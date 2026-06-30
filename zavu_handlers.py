@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 from cachetools import TTLCache
-from telegram_client import send_text, send_image
+from telegram_client import send_text, send_image, send_menu_with_buttons, edit_message_text, edit_message_reply_markup
 from services.database import get_db
 from services.face_matching import FaceMatcher
 from services.acopiove_api import AcopioVEAPI
@@ -17,6 +17,17 @@ _refugios_waiting: TTLCache[str, bool] = TTLCache(maxsize=10000, ttl=600)
 _registrar_waiting: TTLCache[str, bool] = TTLCache(maxsize=10000, ttl=600)
 _search_results_state: dict[str, dict] = {}
 SEARCH_PAGE_SIZE = 5
+
+
+def _build_main_menu_buttons() -> list[list[dict]]:
+    return [
+        [{"text": "🔍 Buscar persona", "callback_data": "btn:1"}],
+        [{"text": "📝 Registrar persona", "callback_data": "btn:2"}],
+        [{"text": "🏠 Refugios cercanos", "callback_data": "btn:3"}],
+        [{"text": "📞 Telefonos de emergencia", "callback_data": "btn:4"}],
+        [{"text": "🆘 Ayuda", "callback_data": "btn:5"}],
+    ]
+
 
 MENU_TEXT = (
     "🔍 *BuscaChat — Reunificacion Familiar*\n\n"
@@ -382,6 +393,29 @@ async def send_image_async(chat_id: str, image_url: str, caption: str = "") -> N
         await asyncio.to_thread(send_image, chat_id, image_url, caption)
     except Exception as e:
         logger.error(f"Failed to send image to {chat_id}: {e}")
+
+
+async def send_menu_with_buttons_async(chat_id: str, text: str, buttons: list[list[dict]]) -> None:
+    try:
+        await asyncio.to_thread(send_menu_with_buttons, chat_id, text, buttons)
+    except Exception as e:
+        logger.error(f"Failed to send menu with buttons to {chat_id}: {e}")
+
+
+async def edit_menu_async(chat_id: int, message_id: int, text: str,
+                           buttons: list[list[dict]] | None = None) -> None:
+    try:
+        await asyncio.to_thread(edit_message_text, chat_id, message_id, text, buttons)
+    except Exception as e:
+        logger.error(f"Failed to edit message for chat_id={chat_id}: {e}")
+
+
+async def edit_markup_async(chat_id: int, message_id: int,
+                             buttons: list[list[dict]] | None = None) -> None:
+    try:
+        await asyncio.to_thread(edit_message_reply_markup, chat_id, message_id, buttons)
+    except Exception as e:
+        logger.error(f"Failed to edit reply markup for chat_id={chat_id}: {e}")
 
 
 HANDLER_MAP = {

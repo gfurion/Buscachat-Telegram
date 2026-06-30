@@ -108,3 +108,26 @@ class TestEditMessageReplyMarkup:
 
         call_kwargs = mock_bot.edit_message_reply_markup.call_args[1]
         assert call_kwargs["reply_markup"] == ""
+
+
+class TestMainMenuButtons:
+    def test_build_main_menu_buttons_returns_5_rows(self):
+        from zavu_handlers import _build_main_menu_buttons
+        buttons = _build_main_menu_buttons()
+        assert len(buttons) == 5
+
+    def test_build_main_menu_buttons_callback_data(self):
+        from zavu_handlers import _build_main_menu_buttons
+        buttons = _build_main_menu_buttons()
+        assert buttons[0][0]["callback_data"] == "btn:1"
+        assert buttons[1][0]["callback_data"] == "btn:2"
+        assert buttons[2][0]["callback_data"] == "btn:3"
+        assert buttons[3][0]["callback_data"] == "btn:4"
+        assert buttons[4][0]["callback_data"] == "btn:5"
+
+    def test_build_main_menu_buttons_have_text(self):
+        from zavu_handlers import _build_main_menu_buttons
+        buttons = _build_main_menu_buttons()
+        for row in buttons:
+            assert "text" in row[0]
+            assert len(row[0]["text"]) > 0
