@@ -12,7 +12,7 @@ Para futuras sesiones: leer este archivo antes de modificar código.
 - **Railway:** https://buscachat-telegram-production.up.railway.app
 - **Webhook:** `POST /webhook/telegram`
 - **Health:** `GET /health`
-- **Token:** `{{TELEGRAM_BOT_TOKEN}}` (NO hardcodear — leer de variable de entorno)
+- **Token:** `{{TELEGRAM_BOT_TOKEN}}` (NO hardcodear — leer de variable de entorno). Rotado en BotFather el 2026-06-30.
 - **Project ID:** `celebrated-nature / Buscachat-Telegram`
 
 ## Stack

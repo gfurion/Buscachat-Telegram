@@ -7,6 +7,7 @@ Parte del hackathon **Build 4 Venezuela**.
 [![Tests](https://img.shields.io/badge/tests-132%2F132%20passing-brightgreen)](https://github.com/gfurion/Buscachat-Telegram)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://python.org)
 [![Deploy](https://img.shields.io/badge/deploy-Railway-8B5CF6)](https://buscachat-telegram-production.up.railway.app/health)
+[![Security](https://img.shields.io/badge/security-rate%20limited%20%7C%20MIME%20validated%20%7C%20HMAC-brightgreen)](SECURITY.md)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 ---
@@ -232,5 +233,17 @@ Todos los sub-menús incluyen botón **🔙 Volver al menú**.
 ---
 
 **Bot en producción:** [@BuscaChatVzla_bot](https://t.me/BuscaChatVzla_bot)
+
+## 🔒 Seguridad
+
+| Medida | Detalle |
+|--------|---------|
+| **HMAC** | Verificación de webhook via `X-Telegram-Bot-Api-Secret-Token` con `hmac.compare_digest` (protegido contra timing attacks) |
+| **Rate limiting** | 30 requests/minuto por chat_id — retorna HTTP 429 si se excede |
+| **Validación de fotos** | Solo `image/jpeg`, `image/png`, `image/webp`. Máximo 10MB |
+| **Límites de input** | Nombre ≤ 200 caracteres, ubicación ≤ 300 caracteres |
+| **Markdown sanitizado** | Input de usuario escapado en respuestas (`_`, `*`, `` ` ``). APIs externas también escapadas |
+| **Dependencias** | Versiones fijas (`==`) en requirements.txt |
+| **No secrets en git** | Token del bot en variables de entorno Railway, no en archivos del repo |
 
 Build 4 Venezuela · [Dashboard](https://aeterna.red/build4venezuela/) · [Discord](https://build4venezuela.com/discord)
