@@ -32,7 +32,7 @@ class FakePeopleSearch:
 
 class TestZavuHandlers:
     def test_handle_start_cancels_state(self, monkeypatch):
-        monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: None)
+        monkeypatch.setattr("zavu_handlers.send_text_async", AsyncMock())
         from zavu_state import ReportStateMachine
         ReportStateMachine.start(CHAT_ID, "desaparecido")
         assert ReportStateMachine.is_active(CHAT_ID)
@@ -43,7 +43,7 @@ class TestZavuHandlers:
         assert not ReportStateMachine.is_active(CHAT_ID)
 
     def test_handle_menu_registrar_sets_waiting(self, monkeypatch):
-        monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: None)
+        monkeypatch.setattr("zavu_handlers.send_text_async", AsyncMock())
         import asyncio
         from zavu_handlers import handle_menu_registrar, _registrar_waiting
 
@@ -51,7 +51,7 @@ class TestZavuHandlers:
         assert _registrar_waiting.get(CHAT_ID) is True
 
     def test_handle_refugios_sets_waiting(self, monkeypatch):
-        monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: None)
+        monkeypatch.setattr("zavu_handlers.send_text_async", AsyncMock())
         import asyncio
         from zavu_handlers import handle_refugios, _refugios_waiting
 
@@ -59,9 +59,10 @@ class TestZavuHandlers:
         assert _refugios_waiting.get(CHAT_ID) is True
 
     def test_handle_refugios_with_city(self, monkeypatch):
-        monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: None)
         sent = []
-        monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: sent.append(text))
+        async def fake_send(chat_id, text):
+            sent.append(text)
+        monkeypatch.setattr("zavu_handlers.send_text_async", fake_send)
 
         async def mock_buscar_puntos(**kwargs):
             return [{"nombre": "Refugio X", "ciudad": "Caracas"}]
@@ -78,7 +79,9 @@ class TestZavuHandlers:
 
     def test_handle_free_text_short(self, monkeypatch):
         sent = []
-        monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: sent.append(text))
+        async def fake_send(chat_id, text):
+            sent.append(text)
+        monkeypatch.setattr("zavu_handlers.send_text_async", fake_send)
 
         import asyncio
         from zavu_handlers import handle_free_text
@@ -88,7 +91,9 @@ class TestZavuHandlers:
 
     def test_handle_free_text_search(self, monkeypatch):
         sent = []
-        monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: sent.append(text))
+        async def fake_send(chat_id, text):
+            sent.append(text)
+        monkeypatch.setattr("zavu_handlers.send_text_async", fake_send)
         monkeypatch.setattr("zavu_handlers.people_search", FakePeopleSearch())
 
         import asyncio
@@ -99,7 +104,9 @@ class TestZavuHandlers:
 
     def test_handle_buscar_with_query(self, monkeypatch):
         sent = []
-        monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: sent.append(text))
+        async def fake_send(chat_id, text):
+            sent.append(text)
+        monkeypatch.setattr("zavu_handlers.send_text_async", fake_send)
         monkeypatch.setattr("zavu_handlers.people_search", FakePeopleSearch())
 
         import asyncio
@@ -110,7 +117,9 @@ class TestZavuHandlers:
 
     def test_handle_buscar_without_query(self, monkeypatch):
         sent = []
-        monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: sent.append(text))
+        async def fake_send(chat_id, text):
+            sent.append(text)
+        monkeypatch.setattr("zavu_handlers.send_text_async", fake_send)
         import asyncio
         from zavu_handlers import handle_buscar
         asyncio.run(handle_buscar(CHAT_ID, "/buscar"))
@@ -118,7 +127,9 @@ class TestZavuHandlers:
 
     def test_handle_photo_disabled(self, monkeypatch):
         sent = []
-        monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: sent.append(text))
+        async def fake_send(chat_id, text):
+            sent.append(text)
+        monkeypatch.setattr("zavu_handlers.send_text_async", fake_send)
         import asyncio
         from zavu_handlers import handle_photo
         asyncio.run(handle_photo(CHAT_ID, ""))
@@ -126,14 +137,16 @@ class TestZavuHandlers:
 
     def test_handle_info(self, monkeypatch):
         sent = []
-        monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: sent.append(text))
+        async def fake_send(chat_id, text):
+            sent.append(text)
+        monkeypatch.setattr("zavu_handlers.send_text_async", fake_send)
         import asyncio
         from zavu_handlers import handle_info
         asyncio.run(handle_info(CHAT_ID, "/info"))
         assert any("Fuentes" in s for s in sent)
 
     def test_handle_registrar_cmd_desaparecido(self, monkeypatch):
-        monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: None)
+        monkeypatch.setattr("zavu_handlers.send_text_async", AsyncMock())
         from zavu_state import ReportStateMachine
 
         import asyncio
@@ -143,7 +156,7 @@ class TestZavuHandlers:
         assert ReportStateMachine.is_active(CHAT_ID)
 
     def test_handle_registrar_cmd_encontrado(self, monkeypatch):
-        monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: None)
+        monkeypatch.setattr("zavu_handlers.send_text_async", AsyncMock())
         from zavu_state import ReportStateMachine
 
         import asyncio
@@ -153,7 +166,7 @@ class TestZavuHandlers:
         assert ReportStateMachine.is_active(CHAT_ID)
 
     def test_handle_reportar_text_continues_flow(self, monkeypatch):
-        monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: None)
+        monkeypatch.setattr("zavu_handlers.send_text_async", AsyncMock())
         from zavu_state import ReportStateMachine
         ReportStateMachine.start(CHAT_ID, "desaparecido")
 
@@ -164,7 +177,7 @@ class TestZavuHandlers:
         assert ReportStateMachine.is_active(CHAT_ID)
 
     def test_handle_reportar_text_cancel(self, monkeypatch):
-        monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: None)
+        monkeypatch.setattr("zavu_handlers.send_text_async", AsyncMock())
         from zavu_state import ReportStateMachine
         ReportStateMachine.start(CHAT_ID, "desaparecido")
 
@@ -176,7 +189,9 @@ class TestZavuHandlers:
 
     def test_handle_photo_report_empty_file_id(self, monkeypatch):
         sent = []
-        monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: sent.append(text))
+        async def fake_send(chat_id, text):
+            sent.append(text)
+        monkeypatch.setattr("zavu_handlers.send_text_async", fake_send)
         import asyncio
         from zavu_handlers import handle_photo_report
         asyncio.run(handle_photo_report(CHAT_ID, ""))
@@ -184,7 +199,9 @@ class TestZavuHandlers:
 
     def test_handle_photo_report_no_active_state(self, monkeypatch):
         sent = []
-        monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: sent.append(text))
+        async def fake_send(chat_id, text):
+            sent.append(text)
+        monkeypatch.setattr("zavu_handlers.send_text_async", fake_send)
         import asyncio
         from zavu_handlers import handle_photo_report
         asyncio.run(handle_photo_report(CHAT_ID, "file_id_123"))

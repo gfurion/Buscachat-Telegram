@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from config import Config
-from zavu_handlers import HANDLER_MAP, get_search_results_route
+from zavu_handlers import HANDLER_MAP, get_search_results_route, answer_callback_async
 from zavu_state import ReportStateMachine
 
 logging.basicConfig(level=logging.INFO)
@@ -142,8 +142,7 @@ async def telegram_webhook(request: Request):
                     logger.info(f"Telegram: no route for chat_id={chat_id} text={text[:30]}")
 
         if callback_query_id:
-            from telegram_client import answer_callback
-            answer_callback(callback_query_id)
+            await answer_callback_async(callback_query_id)
 
     except Exception as e:
         logger.error(f"Error processing Telegram update: {e}", exc_info=True)

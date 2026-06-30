@@ -3,7 +3,9 @@ import logging
 import httpx
 
 from cachetools import TTLCache
-from telegram_client import send_text, send_image, send_menu_with_buttons, edit_message_text, edit_message_reply_markup, get_bot
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.constants import ParseMode
+from telegram_client import get_bot
 from services.database import get_db
 from services.face_matching import FaceMatcher
 from services.acopiove_api import AcopioVEAPI
@@ -562,21 +564,43 @@ async def handle_btn_ayuda(chat_id: str, text: str = "", message_id: int | None 
 
 async def send_text_async(chat_id: str, text: str) -> None:
     try:
-        await asyncio.to_thread(send_text, chat_id, text)
+        bot = get_bot()
+        await bot.send_message(
+            chat_id=int(chat_id),
+            text=text,
+            parse_mode=ParseMode.MARKDOWN,
+        )
     except Exception as e:
         logger.error(f"Failed to send message to {chat_id}: {e}")
 
 
-async def send_image_async(chat_id: str, image_url: str, caption: str = "") -> None:
+async def send_image_async(chat_id: str, image: str, caption: str = "") -> None:
     try:
-        await asyncio.to_thread(send_image, chat_id, image_url, caption)
+        bot = get_bot()
+        await bot.send_photo(
+            chat_id=int(chat_id),
+            photo=image,
+            caption=caption,
+            parse_mode=ParseMode.MARKDOWN,
+        )
     except Exception as e:
         logger.error(f"Failed to send image to {chat_id}: {e}")
 
 
 async def send_menu_with_buttons_async(chat_id: str, text: str, buttons: list[list[dict]]) -> None:
     try:
-        await asyncio.to_thread(send_menu_with_buttons, chat_id, text, buttons)
+        keyboard = [
+            [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])
+             for btn in row]
+            for row in buttons
+        ]
+        bot = get_bot()
+        await bot.send_message(
+            chat_id=int(chat_id),
+            text=text,
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+        )
     except Exception as e:
         logger.error(f"Failed to send menu with buttons to {chat_id}: {e}")
 
@@ -584,7 +608,21 @@ async def send_menu_with_buttons_async(chat_id: str, text: str, buttons: list[li
 async def edit_menu_async(chat_id: int, message_id: int, text: str,
                            buttons: list[list[dict]] | None = None) -> None:
     try:
-        await asyncio.to_thread(edit_message_text, chat_id, message_id, text, buttons)
+        kwargs = {
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "text": text,
+            "parse_mode": ParseMode.MARKDOWN,
+        }
+        if buttons:
+            keyboard = [
+                [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])
+                 for btn in row]
+                for row in buttons
+            ]
+            kwargs["reply_markup"] = InlineKeyboardMarkup(keyboard)
+        bot = get_bot()
+        await bot.edit_message_text(**kwargs)
     except Exception as e:
         logger.error(f"Failed to edit message for chat_id={chat_id}: {e}")
 
@@ -592,9 +630,31 @@ async def edit_menu_async(chat_id: int, message_id: int, text: str,
 async def edit_markup_async(chat_id: int, message_id: int,
                              buttons: list[list[dict]] | None = None) -> None:
     try:
-        await asyncio.to_thread(edit_message_reply_markup, chat_id, message_id, buttons)
+        if buttons:
+            keyboard = [
+                [InlineKeyboardButton(text=btn["text"], callback_data=btn["callback_data"])
+                 for btn in row]
+                for row in buttons
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+        else:
+            reply_markup = None
+        bot = get_bot()
+        await bot.edit_message_reply_markup(
+            chat_id=chat_id,
+            message_id=message_id,
+            reply_markup=reply_markup,
+        )
     except Exception as e:
         logger.error(f"Failed to edit reply markup for chat_id={chat_id}: {e}")
+
+
+async def answer_callback_async(callback_query_id: str) -> None:
+    try:
+        bot = get_bot()
+        await bot.answer_callback_query(callback_query_id=callback_query_id)
+    except Exception as e:
+        logger.error(f"Failed to answer callback {callback_query_id}: {e}")
 
 
 HANDLER_MAP = {
