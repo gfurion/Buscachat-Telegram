@@ -11,7 +11,6 @@ db = get_db()
 NOMBRE = "reportar:step:nombre"
 CEDULA = "reportar:step:cedula"
 UBICACION = "reportar:step:ubicacion"
-FOTO = "reportar:step:foto"
 CONFIRMAR = "reportar:step:confirmar"
 
 
