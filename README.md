@@ -117,12 +117,12 @@ uvicorn zavu_webhook:app --host 0.0.0.0 --port 8443
 1. ReportaVNZLA + found-people-ve-bot + AcopioVE + **VenezuelaTeBusca** + DB local simultáneamente
 2. Normaliza respuestas a `PeopleSearchResult` unificado
 3. Deduplica por cédula; si no hay cédula, por nombre + ubicación
-4. Muestra resultados paginados de 5 en 5
+4. Muestra resultados paginados de 5 en 5 con botones inline: **➡️ Siguiente / 🆕 Nueva búsqueda / 🏠 Menú**
 
 Después de una búsqueda:
-- `1` — siguiente página
-- `2` — nueva búsqueda
-- `3` — volver al menú
+- `1` o botón **➡️ Siguiente** — siguiente página
+- `2` o botón **🆕 Nueva búsqueda** — nueva búsqueda
+- `3` o botón **🏠 Menú** — volver al menú
 
 ## 📸 Registro con foto opcional
 
@@ -202,12 +202,12 @@ Usuario → Telegram API → Railway (/webhook/telegram) → FastAPI → handler
 ```
 🔍 Buscar persona      → nombre / cédula / foto
 📝 Registrar persona   → desaparecido / encontrado
-🏠 Refugios cercanos   → por ciudad / mapa
+🏠 Refugios cercanos   → seleccionar ciudad de lista (con paginación)
 📞 Teléfonos emergencia → médica / policial / bomberos
 🆘 Ayuda               → cómo usar / privacidad / contacto
 ```
 
-Todos los sub-menús incluyen botón **🔙 Volver al menú**.
+Todos los sub-menús editan el mensaje actual (no acumulan). Refugios muestra ciudades con cantidad y paginación inline. Resultados de búsqueda incluyen botones ➡️ Siguiente / 🆕 Nueva búsqueda / 🏠 Menú.
 
 ## 📋 Estado del proyecto
 
@@ -220,8 +220,11 @@ Todos los sub-menús incluyen botón **🔙 Volver al menú**.
 | Reportar encontrado | ✅ |
 | Foto opcional en registro | ✅ |
 | Refugios y emergencia (AcopioVE) | ✅ |
-| Botones inline con sub-menús | ✅ |
-| Paginación de resultados | ✅ |
+| Refugios por ciudades con botones inline | ✅ |
+| Botones inline con sub-menús (edit-in-place) | ✅ |
+| Paginación de resultados con botones inline | ✅ |
+| Navegación refugios con Anterior/Siguiente | ✅ |
+| Fallback refugios → centros de acopio | ✅ |
 | DB SQLite con embeddings | ✅ |
 | Deploy Railway | ✅ Producción |
 | Tests | ✅ 132/132 |

@@ -231,6 +231,21 @@ railway logs                 # ver logs en tiempo real
 - **Pinning de dependencias:** `requirements.txt` usa `==` con versiones probadas, no `>=`.
 - **`escape_md` movido a `services/normalizer.py`:** usado por `zavu_state.py`, `people_search.py`, `zavu_handlers.py`. No duplicar.
 
+## UI — Navegación con botones inline (2026-06-30)
+
+- **Refugios por ciudades:** botones inline generados dinámicamente desde la API de AcopioVE. Agrupados por ciudad, ordenados por cantidad descendente, paginados de a 10 con ⬅️ Anterior / ➡️ Siguiente. Cache TTL 5 min.
+- **Fallback a centros de acopio:** si `tipo=refugio` da 0 resultados para una ciudad, busca `tipo=acopio` y muestra centros de acopio como alternativa.
+- **Paginación de resultados de refugios:** `_refugios_results_state` guarda el estado. Botón "➡️ Siguiente (N más)" después de cada página de 5 refugios.
+- **Resultados de búsqueda con botones inline:** después de resultados de personas, aparecen botones `➡️ Siguiente` / `🆕 Nueva búsqueda` / `🏠 Menú`. Los comandos de texto `1`/`2`/`3` siguen funcionando (retrocompatibilidad).
+- **15 handlers hoja edit-in-place:** botones de sub-menús ahora editan el mensaje actual (`edit_menu_async`) cuando tienen `message_id`, en vez de enviar un mensaje nuevo. Afecta: buscar_nombre/cedula/foto, registrar_desaparecido/encontrado, emergencia_*, ayuda_*, search_nav.
+- **`handle_search_menu`** ahora envía el menú con los 5 botones inline, no solo texto.
+
+## Bugs corregidos (2026-06-30)
+
+- **Paginación refugios ciudades rota:** `btn:refugios:ciudades:page:N` no tenía fallback en el webhook. Agregado.
+- **Botones de navegación de búsqueda crasheaban:** `handle_search_nav` no aceptaba `message_id`. Agregado a ella y a `handle_search_more/new/menu`.
+- **Código muerto:** `if pass` sin efecto en `_realizar_busqueda`. Eliminado.
+
 ## Pendiente
 
 - ~~Reconocimiento facial~~ → embedding extraído pero **no almacenado** en DB. Falta pasar `persona_id` a `FaceMatcher.store_embedding()`
