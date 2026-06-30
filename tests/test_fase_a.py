@@ -80,32 +80,32 @@ class TestStatePersistence:
 
 class TestTelegramWebhook:
     def test_import(self):
-        from telegram_webhook import app
+        from zavu_webhook import app
         assert app is not None
 
     def test_health(self):
         from fastapi.testclient import TestClient
-        from telegram_webhook import app
+        from zavu_webhook import app
         client = TestClient(app)
         resp = client.get("/health")
         assert resp.status_code == 200
         assert resp.json()["status"] == "ok"
 
     def test_verify_telegram_secret_valid(self):
-        from telegram_webhook import _verify_telegram_secret
+        from zavu_webhook import _verify_telegram_secret
         from config import Config
         Config.TELEGRAM_WEBHOOK_SECRET = "test_secret"
         assert _verify_telegram_secret("test_secret") is True
         assert _verify_telegram_secret("wrong") is False
 
     def test_verify_telegram_secret_skip(self):
-        from telegram_webhook import _verify_telegram_secret
+        from zavu_webhook import _verify_telegram_secret
         from config import Config
         Config.TELEGRAM_WEBHOOK_SECRET = "change-me"
         assert _verify_telegram_secret("anything") is True
 
     def test_route_telegram_commands(self):
-        from telegram_webhook import _route_telegram
+        from zavu_webhook import _route_telegram
         assert _route_telegram("/start") == "start"
         assert _route_telegram("/buscar Maria") == "buscar"
         assert _route_telegram("/ayuda") == "ayuda"
@@ -116,7 +116,7 @@ class TestTelegramWebhook:
         assert _route_telegram("/unknown") is None
 
     def test_route_telegram_menu(self):
-        from telegram_webhook import _route_telegram
+        from zavu_webhook import _route_telegram
         assert _route_telegram("1") == "menu:buscar"
         assert _route_telegram("2") == "menu:registrar"
         assert _route_telegram("3") == "menu:refugios"
@@ -124,6 +124,6 @@ class TestTelegramWebhook:
         assert _route_telegram("5") == "ayuda"
 
     def test_route_telegram_free_text(self):
-        from telegram_webhook import _route_telegram
+        from zavu_webhook import _route_telegram
         assert _route_telegram("Maria Perez") == "free_text"
         assert _route_telegram("M") is None

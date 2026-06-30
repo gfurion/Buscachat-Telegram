@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 from cachetools import TTLCache
-from zavu_client import send_text, send_image
+from telegram_client import send_text, send_image
 from services.database import get_db
 from services.face_matching import FaceMatcher
 from services.acopiove_api import AcopioVEAPI

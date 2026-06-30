@@ -27,10 +27,6 @@ class Config:
     FACE_MATCH_THRESHOLD: float = float(os.environ.get("FACE_MATCH_THRESHOLD", "0.40"))
     FACE_MATCH_ENABLED: bool = os.environ.get("FACE_MATCH_ENABLED", "true").lower() == "true"
 
-    ZAVU_API_KEY: str = os.environ.get("ZAVU_API_KEY", "")
-    ZAVU_SENDER_ID: str = os.environ.get("ZAVU_SENDER_ID", "")
-    ZAVU_WEBHOOK_SECRET: str = os.environ.get("ZAVU_WEBHOOK_SECRET", "")
-
     LOG_LEVEL: str = os.environ.get("LOG_LEVEL", "INFO")
 
     @classmethod

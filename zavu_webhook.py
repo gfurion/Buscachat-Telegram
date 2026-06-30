@@ -1,21 +1,16 @@
 import hmac
 import hashlib
 import logging
-import json
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from cachetools import TTLCache
 
 from config import Config
-from zavu_router import route_event, get_chat_id
 from zavu_handlers import HANDLER_MAP, get_search_results_route
 from zavu_state import ReportStateMachine
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-_seen_events = TTLCache(maxsize=10000, ttl=600)
 
 app = FastAPI(title="BuscaChat Webhook")
 
@@ -23,96 +18,6 @@ app = FastAPI(title="BuscaChat Webhook")
 @app.get("/health")
 async def health():
     return {"status": "ok"}
-
-
-# ---------------------------------------------------------------------------
-# Zavu webhook
-# ---------------------------------------------------------------------------
-
-def _verify_signature(signature_header: str, body: bytes) -> bool:
-    if not signature_header or not Config.ZAVU_WEBHOOK_SECRET:
-        return False
-
-    parts = dict(
-        part.split("=", 1)
-        for part in signature_header.split(",")
-        if "=" in part
-    )
-    timestamp = parts.get("t", "")
-    provided_sig = parts.get("v1", "")
-
-    if not timestamp or not provided_sig:
-        return False
-
-    signed_payload = f"{timestamp}.{body.decode()}"
-    expected = hmac.new(
-        Config.ZAVU_WEBHOOK_SECRET.encode(),
-        signed_payload.encode(),
-        hashlib.sha256,
-    ).hexdigest()
-
-    return hmac.compare_digest(expected, provided_sig)
-
-
-@app.post("/webhook")
-async def webhook(request: Request):
-    signature = request.headers.get("X-Zavu-Signature", "")
-    body = await request.body()
-
-    sig_valid = _verify_signature(signature, body)
-
-    if not sig_valid:
-        logger.warning(
-            "Webhook signature verification failed — processing anyway (debug mode). "
-            "Telegram channel secret inaccessible via SDK — must be set from Zavu dashboard."
-        )
-
-    event = await request.json()
-    event_type = event.get("type", "")
-
-    if event_type not in ("message.inbound", "conversation.new"):
-        return JSONResponse({"status": "ignored"})
-
-    event_id = event.get("id", "unknown")
-
-    if event_id in _seen_events:
-        return JSONResponse({"status": "duplicate"})
-
-    _seen_events[event_id] = True
-    logger.info(f"Event {event_id}: {event_type}")
-
-    try:
-        chat_id = get_chat_id(event)
-        data = event.get("data", {})
-        text = data.get("text", "").strip()
-
-        active_route = ReportStateMachine.get_route(chat_id)
-
-        if active_route:
-            handler = HANDLER_MAP.get("reportar:step:text")
-
-            if handler:
-                await handler(chat_id, text)
-                logger.info(f"Event {event_id}: state machine step {active_route} (chat_id={chat_id})")
-            else:
-                logger.warning(f"No handler for state route: {active_route}")
-        else:
-            handler_name = get_search_results_route(chat_id, text) or route_event(event)
-
-            if handler_name:
-                handler = HANDLER_MAP.get(handler_name)
-                if handler:
-                    await handler(chat_id, text)
-                    logger.info(f"Event {event_id} handled by {handler_name} (chat_id={chat_id})")
-                else:
-                    logger.warning(f"No handler for route: {handler_name}")
-            else:
-                logger.info(f"Event {event_id}: no route matched (chat_id={chat_id})")
-
-    except Exception as e:
-        logger.error(f"Error processing event {event_id}: {e}", exc_info=True)
-
-    return JSONResponse({"status": "ok"})
 
 
 # ---------------------------------------------------------------------------

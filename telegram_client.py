@@ -80,3 +80,7 @@ def answer_callback(callback_query_id: str, text: str = "") -> None:
             loop.run_until_complete(_send())
     except RuntimeError:
         asyncio.run(_send())
+
+
+def send_image(chat_id: int, image_url: str, caption: str = "") -> None:
+    send_photo(chat_id, image_url, caption)
