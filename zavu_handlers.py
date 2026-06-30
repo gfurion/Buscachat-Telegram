@@ -2,12 +2,15 @@ import asyncio
 import logging
 
 from cachetools import TTLCache
-from telegram_client import send_text, send_image, send_menu_with_buttons, edit_message_text, edit_message_reply_markup
+from telegram_client import send_text, send_image, send_menu_with_buttons, edit_message_text, edit_message_reply_markup, get_bot
 from services.database import get_db
 from services.face_matching import FaceMatcher
 from services.acopiove_api import AcopioVEAPI
 from services.people_search import PeopleSearchAggregator
 from zavu_state import ReportStateMachine
+from config import Config
+from pathlib import Path
+import time
 
 logger = logging.getLogger(__name__)
 people_search = PeopleSearchAggregator(db=get_db())
@@ -192,6 +195,44 @@ async def handle_free_text(chat_id: str, text: str = "") -> None:
             return
 
     await _realizar_busqueda(chat_id, query)
+
+
+async def handle_photo_report(chat_id: str, text: str = "") -> None:
+    file_id = text.strip()
+    if not file_id:
+        await send_text_async(chat_id, "No se recibió la foto. Enviá una foto o /skip para omitir.")
+        return
+
+    try:
+        bot = get_bot()
+        file = await bot.get_file(file_id)
+        file_bytes = await file.download_as_bytearray()
+
+        filename = f"{chat_id}_{int(time.time())}.jpg"
+        filepath = Config.FOTOS_DIR / filename
+        Config.FOTOS_DIR.mkdir(parents=True, exist_ok=True)
+        with open(filepath, "wb") as f:
+            f.write(file_bytes)
+
+        response = ReportStateMachine.save_photo(chat_id, str(filepath), file_id)
+        if not response:
+            await send_text_async(chat_id, "No hay un reporte activo. Usá /start para comenzar.")
+            return
+
+        await send_text_async(chat_id, response)
+        await send_image_async(chat_id, file_id)
+
+        try:
+            matcher = FaceMatcher()
+            embedding = matcher.extract_embedding(bytes(file_bytes))
+            if embedding is not None:
+                logger.info(f"Face embedding extracted for chat_id={chat_id}")
+        except Exception as e:
+            logger.warning(f"Face extraction failed for chat_id={chat_id}: {e}")
+
+    except Exception as e:
+        logger.error(f"Photo download failed for chat_id={chat_id}: {e}")
+        await send_text_async(chat_id, "Error al descargar la foto. Escribí /skip para omitir.")
 
 
 async def handle_photo(chat_id: str, text: str = "") -> None:
@@ -561,6 +602,7 @@ HANDLER_MAP = {
     "buscar": handle_buscar,
     "free_text": handle_free_text,
     "photo": handle_photo,
+    "photo:report": handle_photo_report,
     "search:more": handle_search_more,
     "search:new": handle_search_new,
     "search:menu": handle_search_menu,

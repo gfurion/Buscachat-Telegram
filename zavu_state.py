@@ -12,6 +12,7 @@ db = get_db()
 NOMBRE = "reportar:step:nombre"
 CEDULA = "reportar:step:cedula"
 UBICACION = "reportar:step:ubicacion"
+FOTO = "reportar:step:foto"
 CONFIRMAR = "reportar:step:confirmar"
 
 
@@ -45,6 +46,8 @@ class ReportStateMachine:
         state = cls._load(chat_id)
         if not state:
             return None
+        if state["step"] == FOTO:
+            return "photo:report"
         return "reportar:step:text"
 
     @classmethod
@@ -83,6 +86,8 @@ class ReportStateMachine:
             result = cls._step_cedula(state, text)
         elif step == UBICACION:
             result = cls._step_ubicacion(state, text)
+        elif step == FOTO:
+            result = cls._step_foto(state, text)
         elif step == CONFIRMAR:
             result = cls._step_confirmar(chat_id, state, text)
         else:
@@ -118,7 +123,25 @@ class ReportStateMachine:
             state["ubicacion"] = ""
         else:
             state["ubicacion"] = text
+        state["step"] = FOTO
+        return "📸 *Foto de la persona*\n\nAdjuntá una foto de la persona que estás reportando.\nO escribí /skip si no tenés foto."
+
+    @classmethod
+    def _step_foto(cls, state: dict, text: str) -> Optional[str]:
+        if text == "/skip":
+            state["step"] = CONFIRMAR
+            return cls._build_summary(state)
+        return "📸 Adjuntá una foto de la persona o escribí /skip para omitir."
+
+    @classmethod
+    def save_photo(cls, chat_id: str, foto_path: str, foto_file_id: str) -> str:
+        state = cls._load(chat_id)
+        if not state:
+            return ""
+        state["foto_path"] = foto_path
+        state["foto_file_id"] = foto_file_id
         state["step"] = CONFIRMAR
+        cls._persist(chat_id)
         return cls._build_summary(state)
 
     @classmethod
@@ -164,13 +187,15 @@ class ReportStateMachine:
     def _build_summary(cls, state: dict) -> str:
         tipo_str = state.get("tipo", "desaparecido")
         tipo_text = "desaparecido/a" if tipo_str == "desaparecido" else "encontrado/a"
+        foto_status = "✅ Adjuntada" if state.get("foto_file_id") else "❌ No adjuntada"
         logger.info(f"Build summary: tipo_str={tipo_str} tipo_text={tipo_text}")
         return (
             f"*Resumen del reporte*\n\n"
             f"Tipo: *{tipo_text}*\n"
             f"Nombre: *{state.get('nombre', '-')}*\n"
             f"Cedula: {state.get('cedula') or 'No informada'}\n"
-            f"Ubicacion: {state.get('ubicacion') or 'No informada'}\n\n"
+            f"Ubicacion: {state.get('ubicacion') or 'No informada'}\n"
+            f"Foto: {foto_status}\n\n"
             "Escribi *Confirmar* para guardar o *Cancelar* para descartar."
         )
 

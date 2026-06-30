@@ -1,5 +1,5 @@
 import pytest
-from zavu_state import ReportStateMachine, NOMBRE, CEDULA, UBICACION, CONFIRMAR
+from zavu_state import ReportStateMachine, NOMBRE, CEDULA, UBICACION, FOTO, CONFIRMAR
 
 
 class TestReportStateMachine:
@@ -52,14 +52,14 @@ class TestReportStateMachine:
         ReportStateMachine.handle_text("chat1", "Maria")
         ReportStateMachine.handle_text("chat1", "12345")
         resp = ReportStateMachine.handle_text("chat1", "Caracas")
-        assert "resumen" in resp.lower() or "confirmar" in resp.lower()
+        assert "foto" in resp.lower()
 
     def test_step_ubicacion_skip(self):
         ReportStateMachine.start("chat1", "desaparecido")
         ReportStateMachine.handle_text("chat1", "Maria")
         ReportStateMachine.handle_text("chat1", "12345")
         resp = ReportStateMachine.handle_text("chat1", "/skip")
-        assert "resumen" in resp.lower() or "confirmar" in resp.lower()
+        assert "foto" in resp.lower()
 
     def test_step_confirmar_valid(self, tmp_path, monkeypatch):
         monkeypatch.setattr("config.Config.DB_PATH", tmp_path / "test.db")
@@ -114,6 +114,54 @@ class TestReportStateMachine:
         ReportStateMachine.handle_text("chat1", "Cancelar")
         assert not ReportStateMachine.is_active("chat1")
 
+    def test_step_foto_skip(self):
+        ReportStateMachine.start("chat1", "desaparecido")
+        ReportStateMachine.handle_text("chat1", "Maria")
+        ReportStateMachine.handle_text("chat1", "12345")
+        ReportStateMachine.handle_text("chat1", "Caracas")
+        resp = ReportStateMachine.handle_text("chat1", "/skip")
+        assert "resumen" in resp.lower() or "confirmar" in resp.lower()
+
+    def test_step_foto_invalid_text(self):
+        ReportStateMachine.start("chat1", "desaparecido")
+        ReportStateMachine.handle_text("chat1", "Maria")
+        ReportStateMachine.handle_text("chat1", "12345")
+        ReportStateMachine.handle_text("chat1", "Caracas")
+        resp = ReportStateMachine.handle_text("chat1", "esto no es una foto")
+        assert "foto" in resp.lower()
+        assert "skip" in resp.lower()
+
+    def test_get_route_foto(self):
+        ReportStateMachine.start("chat1", "desaparecido")
+        ReportStateMachine.handle_text("chat1", "Maria")
+        ReportStateMachine.handle_text("chat1", "12345")
+        ReportStateMachine.handle_text("chat1", "Caracas")
+        assert ReportStateMachine.get_route("chat1") == "photo:report"
+
+    def test_save_photo(self, tmp_path):
+        ReportStateMachine.start("chat1", "desaparecido")
+        ReportStateMachine.handle_text("chat1", "Maria")
+        ReportStateMachine.handle_text("chat1", "12345")
+        ReportStateMachine.handle_text("chat1", "Caracas")
+        resp = ReportStateMachine.save_photo("chat1", "/fake/path/foto.jpg", "file_id_123")
+        assert "resumen" in resp.lower() or "confirmar" in resp.lower()
+        assert ReportStateMachine.get_route("chat1") == "reportar:step:text"
+        state = ReportStateMachine._states["chat1"]
+        assert state["foto_path"] == "/fake/path/foto.jpg"
+        assert state["foto_file_id"] == "file_id_123"
+
+    def test_save_photo_summary_shows_foto(self, tmp_path):
+        ReportStateMachine.start("chat1", "desaparecido")
+        ReportStateMachine.handle_text("chat1", "Maria")
+        ReportStateMachine.handle_text("chat1", "12345")
+        ReportStateMachine.handle_text("chat1", "Caracas")
+        resp = ReportStateMachine.save_photo("chat1", "/fake/path/foto.jpg", "file_id_123")
+        assert "adjuntada" in resp.lower()
+
+    def test_save_photo_no_state(self):
+        resp = ReportStateMachine.save_photo("unknown", "/fake/path/foto.jpg", "file_id_123")
+        assert resp == ""
+
     def test_full_flow_desaparecido(self, tmp_path, monkeypatch):
         monkeypatch.setattr("config.Config.DB_PATH", tmp_path / "test.db")
         monkeypatch.setattr("config.Config.DATA_DIR", tmp_path)
@@ -121,6 +169,7 @@ class TestReportStateMachine:
         ReportStateMachine.handle_text("chat1", "Maria Perez")
         ReportStateMachine.handle_text("chat1", "12345678")
         ReportStateMachine.handle_text("chat1", "Catia La Mar")
+        ReportStateMachine.handle_text("chat1", "/skip")
         ReportStateMachine.handle_text("chat1", "/skip")
         resp = ReportStateMachine.handle_text("chat1", "Confirmar")
         assert "guardado" in resp.lower()

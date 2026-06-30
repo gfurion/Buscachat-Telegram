@@ -170,3 +170,23 @@ class TestZavuHandlers:
         asyncio.run(handle_reportar_text(CHAT_ID, "/cancel"))
 
         assert not ReportStateMachine.is_active(CHAT_ID)
+
+    def test_handle_photo_report_empty_file_id(self, monkeypatch):
+        sent = []
+        monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: sent.append(text))
+        import asyncio
+        from zavu_handlers import handle_photo_report
+        asyncio.run(handle_photo_report(CHAT_ID, ""))
+        assert any("No se recibió" in s for s in sent) or any("foto" in s for s in sent)
+
+    def test_handle_photo_report_no_active_state(self, monkeypatch):
+        sent = []
+        monkeypatch.setattr("zavu_handlers.send_text", lambda to, text: sent.append(text))
+        import asyncio
+        from zavu_handlers import handle_photo_report
+        asyncio.run(handle_photo_report(CHAT_ID, "file_id_123"))
+        assert any("Error" in s for s in sent) or any("foto" in s for s in sent)
+
+    def test_handler_map_has_photo_report(self):
+        from zavu_handlers import HANDLER_MAP
+        assert "photo:report" in HANDLER_MAP
