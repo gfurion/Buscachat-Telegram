@@ -10,6 +10,7 @@ from services.database import get_db
 from services.face_matching import FaceMatcher
 from services.acopiove_api import AcopioVEAPI
 from services.people_search import PeopleSearchAggregator
+from services.venezuela_te_busca_api import VenezuelaTeBuscaAPI
 from services.normalizer import escape_md
 from zavu_state import ReportStateMachine
 from config import Config
@@ -17,7 +18,7 @@ from pathlib import Path
 import time
 
 logger = logging.getLogger(__name__)
-people_search = PeopleSearchAggregator(db=get_db())
+people_search = PeopleSearchAggregator(db=get_db(), venezuela_te_busca=VenezuelaTeBuscaAPI())
 acopiove = AcopioVEAPI()
 
 _refugios_waiting: TTLCache[str, bool] = TTLCache(maxsize=10000, ttl=600)

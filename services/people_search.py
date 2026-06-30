@@ -9,6 +9,7 @@ from services.database import get_db
 from services.found_people_api import FoundPeopleAPI
 from services.normalizer import normalizar_texto, escape_md
 from services.reportavnzla_api import ReportaVNZLAAPI
+from services.venezuela_te_busca_api import VenezuelaTeBuscaAPI
 
 logger = logging.getLogger(__name__)
 
@@ -32,11 +33,13 @@ class PeopleSearchAggregator:
         found_people: Optional[FoundPeopleAPI] = None,
         acopiove: Optional[AcopioVEAPI] = None,
         reportavnzla: Optional[ReportaVNZLAAPI] = None,
+        venezuela_te_busca: Optional[VenezuelaTeBuscaAPI] = None,
         db: Optional["Database"] = None,
     ):
         self.found_people = found_people or FoundPeopleAPI()
         self.acopiove = acopiove or AcopioVEAPI()
         self.reportavnzla = reportavnzla or ReportaVNZLAAPI()
+        self.venezuela_te_busca = venezuela_te_busca
         self.db = db
 
     async def buscar(self, query: str) -> List[PeopleSearchResult]:
@@ -48,6 +51,8 @@ class PeopleSearchAggregator:
             self._buscar_found_people(query),
             self._buscar_acopiove(query),
         ]
+        if self.venezuela_te_busca is not None:
+            tasks.append(self._buscar_venezuela_te_busca(query))
         if self.db is not None:
             tasks.append(self._buscar_local_db(query))
 
@@ -73,6 +78,10 @@ class PeopleSearchAggregator:
     async def _buscar_acopiove(self, query: str) -> List[PeopleSearchResult]:
         rows = await self.acopiove.buscar_personas(query)
         return [self._from_acopiove(row) for row in rows]
+
+    async def _buscar_venezuela_te_busca(self, query: str) -> List[PeopleSearchResult]:
+        rows = await self.venezuela_te_busca.buscar(query)
+        return [self._from_venezuela_te_busca(row) for row in rows]
 
     async def _buscar_local_db(self, query: str) -> List[PeopleSearchResult]:
         try:
@@ -135,6 +144,18 @@ class PeopleSearchAggregator:
             info=self._first(row, "observaciones", "relevantInfo", "info", "descripcion"),
             fuente=self._first(row, "fuente", default="AcopioVE"),
             source_url=self._first(row, "sourceUrl", "url"),
+            raw=row,
+        )
+
+    def _from_venezuela_te_busca(self, row: Dict[str, Any]) -> PeopleSearchResult:
+        return PeopleSearchResult(
+            nombre=row.get("nombre", "Sin nombre"),
+            cedula=row.get("cedula", ""),
+            estado=row.get("estado", ""),
+            ubicacion=row.get("ubicacion", ""),
+            info=row.get("info", ""),
+            foto_path=row.get("foto_path", ""),
+            fuente="VenezuelaTeBusca",
             raw=row,
         )
 
